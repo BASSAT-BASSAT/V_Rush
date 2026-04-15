@@ -21,12 +21,37 @@ export function AuthScreen() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [info, setInfo] = useState<string | null>(null)
+  const [canResendConfirmation, setCanResendConfirmation] = useState(false)
   const [busy, setBusy] = useState(false)
+
+  const resendConfirmation = async () => {
+    const addr = email.trim()
+    if (!addr) return
+    setError(null)
+    setBusy(true)
+    try {
+      const sb = getSupabase()
+      const origin =
+        typeof window !== 'undefined' ? window.location.origin.replace(/\/$/, '') : ''
+      const { error: err } = await sb.auth.resend({
+        type: 'signup',
+        email: addr,
+        options: origin ? { emailRedirectTo: `${origin}/` } : undefined,
+      })
+      if (err) throw err
+      setInfo('Another confirmation link was sent. Check spam / Promotions in Gmail.')
+    } catch (err: unknown) {
+      setError(authErrorMessage(err))
+    } finally {
+      setBusy(false)
+    }
+  }
 
   const submit = async (e: FormEvent) => {
     e.preventDefault()
     setError(null)
     setInfo(null)
+    setCanResendConfirmation(false)
     setBusy(true)
     try {
       const sb = getSupabase()
@@ -42,7 +67,10 @@ export function AuthScreen() {
         })
         if (err) throw err
         if (data.user && !data.session) {
-          setInfo('Account created—check your email to confirm, then sign in here.')
+          setInfo(
+            'Account created—Supabase will email a confirmation link (check Spam / Promotions). No email? Use Resend below, or turn off “Confirm email” in Supabase → Authentication → Providers → Email for testing.',
+          )
+          setCanResendConfirmation(true)
         }
       } else {
         const { error: err } = await sb.auth.signInWithPassword({ email: email.trim(), password })
@@ -88,6 +116,16 @@ export function AuthScreen() {
           </label>
           {info && <p className="auth-screen__hint">{info}</p>}
           {error && <p className="auth-screen__error">{error}</p>}
+          {canResendConfirmation && mode === 'signup' && (
+            <button
+              type="button"
+              className="btn btn--ghost auth-screen__submit"
+              disabled={busy || !email.trim()}
+              onClick={() => void resendConfirmation()}
+            >
+              Resend confirmation email
+            </button>
+          )}
           <button type="submit" className="btn btn--primary auth-screen__submit" disabled={busy}>
             {busy ? 'Please wait…' : mode === 'signin' ? 'Sign in' : 'Sign up'}
           </button>
