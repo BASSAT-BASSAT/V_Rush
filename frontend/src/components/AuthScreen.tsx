@@ -1,23 +1,39 @@
 import { useState, type FormEvent } from 'react'
 import { getSupabase } from '../lib/supabase'
 
+function authErrorMessage(err: unknown): string {
+  if (!err || typeof err !== 'object') return 'Authentication failed'
+  const e = err as { message?: string; code?: string }
+  const msg = typeof e.message === 'string' ? e.message : 'Authentication failed'
+  const code = typeof e.code === 'string' ? e.code : ''
+  if (code === 'invalid_credentials' || /invalid login credentials/i.test(msg)) {
+    return 'Invalid email or password—or no account yet on this app. Use Sign up first for this site, or reset the password in Supabase Dashboard → Authentication → Users.'
+  }
+  if (code === 'email_not_confirmed' || /email not confirmed/i.test(msg)) {
+    return `${msg} Check your inbox/spam, or disable “Confirm email” for testing in Supabase → Authentication → Providers → Email.`
+  }
+  return msg
+}
+
 export function AuthScreen() {
   const [mode, setMode] = useState<'signin' | 'signup'>('signin')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [info, setInfo] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
   const submit = async (e: FormEvent) => {
     e.preventDefault()
     setError(null)
+    setInfo(null)
     setBusy(true)
     try {
       const sb = getSupabase()
       const origin =
         typeof window !== 'undefined' ? window.location.origin.replace(/\/$/, '') : ''
       if (mode === 'signup') {
-        const { error: err } = await sb.auth.signUp({
+        const { data, error: err } = await sb.auth.signUp({
           email: email.trim(),
           password,
           options: origin
@@ -25,20 +41,15 @@ export function AuthScreen() {
             : undefined,
         })
         if (err) throw err
+        if (data.user && !data.session) {
+          setInfo('Account created—check your email to confirm, then sign in here.')
+        }
       } else {
         const { error: err } = await sb.auth.signInWithPassword({ email: email.trim(), password })
         if (err) throw err
       }
     } catch (err: unknown) {
-      const raw =
-        err && typeof err === 'object' && 'message' in err && typeof (err as { message: unknown }).message === 'string'
-          ? (err as { message: string }).message
-          : 'Authentication failed'
-      const hint =
-        /email not confirmed|Email not confirmed/i.test(raw)
-          ? ' Confirm your email (check spam), or ask an admin to allow unconfirmed sign-ins for testing.'
-          : ''
-      setError(`${raw}${hint}`)
+      setError(authErrorMessage(err))
     } finally {
       setBusy(false)
     }
@@ -75,6 +86,7 @@ export function AuthScreen() {
               disabled={busy}
             />
           </label>
+          {info && <p className="auth-screen__hint">{info}</p>}
           {error && <p className="auth-screen__error">{error}</p>}
           <button type="submit" className="btn btn--primary auth-screen__submit" disabled={busy}>
             {busy ? 'Please wait…' : mode === 'signin' ? 'Sign in' : 'Sign up'}
