@@ -7,9 +7,25 @@ function authHeaders(accessToken?: string | null): HeadersInit {
   return { Authorization: `Bearer ${accessToken}` }
 }
 
+async function readApiError(res: Response, fallback: string): Promise<string> {
+  const text = await res.text()
+  if (!text) return `${fallback} (${res.status} ${res.statusText})`
+  try {
+    const j = JSON.parse(text) as { detail?: unknown }
+    const d = j.detail
+    if (typeof d === 'string') return `${fallback}: ${d}`
+    if (d != null) return `${fallback}: ${JSON.stringify(d)}`
+  } catch {
+    /* not JSON */
+  }
+  const clip = text.length > 280 ? `${text.slice(0, 280)}…` : text
+  return `${fallback} (${res.status}): ${clip}`
+}
+
 export async function fetchOps(accessToken?: string | null): Promise<OpInfo[]> {
-  const res = await fetch(`${base()}/api/ops`, { headers: authHeaders(accessToken) })
-  if (!res.ok) throw new Error(`Failed to load ops: ${res.statusText}`)
+  const url = `${base()}/api/ops`
+  const res = await fetch(url, { headers: authHeaders(accessToken) })
+  if (!res.ok) throw new Error(await readApiError(res, 'Failed to load ops'))
   const data = await res.json()
   return data.ops as OpInfo[]
 }

@@ -46,8 +46,20 @@ async def require_user(
             algorithms=["HS256"],
             audience="authenticated",
         )
-    except InvalidTokenError as e:
-        raise HTTPException(status_code=401, detail="Invalid or expired token") from e
+    except InvalidTokenError:
+        # Same Supabase HS256 token; some tokens omit or vary `aud` — still verify signature + `sub`.
+        try:
+            payload = jwt.decode(
+                token,
+                secret,
+                algorithms=["HS256"],
+                options={"verify_signature": True, "verify_aud": False},
+            )
+        except InvalidTokenError as e:
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid or expired token (check API SUPABASE_JWT_SECRET matches Project Settings → API → JWT Secret)",
+            ) from e
 
     sub = payload.get("sub")
     if not sub or not isinstance(sub, str):
