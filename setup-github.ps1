@@ -1,4 +1,4 @@
-# Creates https://github.com/BASSAT-BASSAT/kernellab and pushes this project.
+# Creates https://github.com/BASSAT-BASSAT/Kernel- (or pushes if origin already set).
 # Prerequisite (one time): open PowerShell and run:
 #   & "C:\Program Files\GitHub CLI\gh.exe" auth login
 # Then run this script from the repo root (right-click → Run with PowerShell, or: .\setup-github.ps1)
@@ -20,7 +20,7 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 $owner = "BASSAT-BASSAT"
-$name = "kernellab"
+$name = "Kernel-"
 
 git branch -M main 2>$null
 
