@@ -26,12 +26,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(router)
-
-
-@app.get("/health")
-def health() -> dict[str, str]:
-    return {"status": "ok", "app": "kernellab"}
+app.include_router(router, prefix="/api")
+# Stripped paths for hosts (e.g. Vercel Services ``routePrefix: /api``) that forward ``/api/ops`` as ``/ops``.
+app.include_router(router, prefix="")
+# ``GET /health`` is provided by ``router`` (``api_health``) on the no-prefix mount; keep for Docker probes.
 
 
 def _mount_frontend_dist() -> None:

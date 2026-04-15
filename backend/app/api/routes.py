@@ -17,7 +17,10 @@ from app.cv_ops.validate import validate_pipeline
 from app.processing.io_image import ImageDecodeError, decode_image_bytes
 from app.schemas import OpInfo, OpsListResponse, ProcessResponse
 
-router = APIRouter(prefix="/api", tags=["cv"])
+# Routes are defined without ``/api`` in the path; ``main`` mounts this router twice:
+# ``prefix="/api"`` → ``/api/ops`` (browser, local dev behind proxy)
+# ``prefix=""``     → ``/ops`` (Vercel Services often forwards the path *after* ``/api`` only)
+router = APIRouter(tags=["cv"])
 
 
 @router.get("/health")
