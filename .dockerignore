@@ -1,0 +1,13 @@
+.git
+.gitignore
+.cursor
+**/__pycache__
+**/*.py[cod]
+**/.pytest_cache
+**/.ruff_cache
+**/node_modules
+frontend/dist
+backend/.pytest_cache
+.env
+.env.*
+**/.DS_Store

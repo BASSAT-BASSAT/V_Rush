@@ -1,0 +1,20 @@
+# Render Blueprint — API only (pair with Vercel for the frontend).
+# Dashboard: New → Blueprint → connect repo, or use "Apply render.yaml" from repo.
+# After deploy, set CORS_ORIGINS to your Vercel URL (https://your-app.vercel.app).
+
+services:
+  - type: web
+    name: kernellab-api
+    runtime: docker
+    region: oregon
+    plan: free
+    dockerfilePath: ./Dockerfile.backend
+    dockerContext: .
+    healthCheckPath: /health
+    envVars:
+      - key: KERNELLAB_AUTH_DISABLED
+        value: "0"
+      - key: SUPABASE_JWT_SECRET
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
