@@ -20,6 +20,12 @@ from app.schemas import OpInfo, OpsListResponse, ProcessResponse
 router = APIRouter(prefix="/api", tags=["cv"])
 
 
+@router.get("/health")
+def api_health() -> dict[str, str]:
+    """Same payload as ``GET /health``; use when the API is only routed under ``/api`` (e.g. Vercel Services)."""
+    return {"status": "ok", "app": "kernellab"}
+
+
 @router.get("/ops", response_model=OpsListResponse)
 def get_ops(_user_id: str = Depends(require_user)) -> OpsListResponse:
     raw = list_ops_public()

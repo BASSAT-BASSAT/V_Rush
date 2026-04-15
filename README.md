@@ -53,6 +53,18 @@ Example (Render / Railway): connect the repo, Dockerfile path `Dockerfile.backen
 
 Copy [`frontend/.env.example`](frontend/.env.example) as a checklist.
 
+### Vercel Services (frontend + FastAPI in one project)
+
+Use [`vercel.json`](vercel.json) at the **repository root** and set the Vercel project **Framework** to **Services** (not “Vite” only). Use **Root Directory** **`.`** (entire repo), not `frontend`.
+
+- The API is mounted at **`/api`**, matching existing routes (`/api/ops`, …). Set **`VITE_API_BASE_URL` empty** so the browser uses same-origin `/api/...`.
+- Configure **`SUPABASE_JWT_SECRET`**, **`CORS_ORIGINS`** (your `https://…vercel.app`), and optional limits on the **backend** service environment in Vercel.
+- Health for the API behind `/api`: **`GET /api/health`** (see [`backend/app/api/routes.py`](backend/app/api/routes.py)).
+
+The UI example `/_/backend` would require a different `routePrefix` **and** matching path prefixes in FastAPI; this repo uses **`/api`** for Services instead.
+
+**OpenCV** may exceed Vercel Python limits. If the backend build fails, keep deploying the API with [`Dockerfile.backend`](Dockerfile.backend) on Render (or similar) and use [Frontend (Vercel)](#3-frontend-vercel) with **Root Directory** `frontend` and `VITE_API_BASE_URL` pointing at that host.
+
 ## 4. Local development
 
 ```bash
