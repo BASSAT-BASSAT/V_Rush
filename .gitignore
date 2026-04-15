@@ -16,6 +16,7 @@ frontend/dist/
 .env.*.local
 backend/.env
 frontend/.env
+kernellab.env
 
 # IDE
 .idea/

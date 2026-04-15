@@ -51,7 +51,7 @@ Example (Render / Railway): connect the repo, Dockerfile path `Dockerfile.backen
 
 5. Redeploy after changing env vars.
 
-Copy [`frontend/.env.example`](frontend/.env.example) as a checklist.
+Copy [`frontend/.env.example`](frontend/.env.example) as a checklist. For one combined list (e.g. Vercel import), use [`kernellab.env.example`](kernellab.env.example) at the repo root—copy to `kernellab.env`, fill in, and keep that file out of git.
 
 ### Vercel Services (frontend + FastAPI in one project)
 
