@@ -10,6 +10,8 @@ Classical computer vision playground: stack OpenCV-style operations, run a pipel
 - **Database (Supabase Postgres):** `profiles` (synced from signups), `email_subscribers` (footer newsletter), `usage_logs` (one row per successful pipeline run when logged in).
 - **Deploy:** Frontend on **Vercel** (or similar); API on **Render / Railway / Fly.io** via [`Dockerfile.backend`](Dockerfile.backend); optional **single-container** UI+API via root [`Dockerfile`](Dockerfile).
 
+For a step-by-step go-live list (SQL, Auth URLs, Vercel, CORS), see [`docs/PRODUCTION-CHECKLIST.md`](docs/PRODUCTION-CHECKLIST.md). To regenerate `frontend/.env` and `backend/.env` from `kernellab.env`, run `.\scripts\sync-kernellab-env.ps1` from the repo root.
+
 ## 1. Supabase setup
 
 1. Create a project at [supabase.com](https://supabase.com).
