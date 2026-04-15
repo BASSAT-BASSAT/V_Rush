@@ -10,6 +10,14 @@ export function getSupabase(): SupabaseClient {
   if (!url?.trim() || !key?.trim()) {
     throw new Error('Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY')
   }
-  client = createClient(url.trim(), key.trim())
+  client = createClient(url.trim(), key.trim(), {
+    auth: {
+      flowType: 'pkce',
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+      storage: typeof window !== 'undefined' ? window.localStorage : undefined,
+    },
+  })
   return client
 }

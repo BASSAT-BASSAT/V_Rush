@@ -14,15 +14,31 @@ export function AuthScreen() {
     setBusy(true)
     try {
       const sb = getSupabase()
+      const origin =
+        typeof window !== 'undefined' ? window.location.origin.replace(/\/$/, '') : ''
       if (mode === 'signup') {
-        const { error: err } = await sb.auth.signUp({ email: email.trim(), password })
+        const { error: err } = await sb.auth.signUp({
+          email: email.trim(),
+          password,
+          options: origin
+            ? { emailRedirectTo: `${origin}/` }
+            : undefined,
+        })
         if (err) throw err
       } else {
         const { error: err } = await sb.auth.signInWithPassword({ email: email.trim(), password })
         if (err) throw err
       }
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Authentication failed')
+      const raw =
+        err && typeof err === 'object' && 'message' in err && typeof (err as { message: unknown }).message === 'string'
+          ? (err as { message: string }).message
+          : 'Authentication failed'
+      const hint =
+        /email not confirmed|Email not confirmed/i.test(raw)
+          ? ' Confirm your email (check spam), or ask an admin to allow unconfirmed sign-ins for testing.'
+          : ''
+      setError(`${raw}${hint}`)
     } finally {
       setBusy(false)
     }
