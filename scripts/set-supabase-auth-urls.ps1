@@ -29,6 +29,8 @@ if (-not $SiteUrl.EndsWith("/")) {
 }
 
 # Wildcards: https://supabase.com/docs/guides/auth/redirect-urls
+# One entry per line (newline-separated). Serialize each value with ConvertTo-Json so newlines become \n in JSON;
+# building a hashtable + ConvertTo-Json once can merge lines incorrectly on Windows PowerShell 5.1.
 $uriAllowList = @(
     "http://localhost:5173/**"
     "http://127.0.0.1:5173/**"
@@ -36,11 +38,7 @@ $uriAllowList = @(
     "$($SiteUrl.TrimEnd('/'))/**"
 ) -join "`n"
 
-$bodyObj = [ordered]@{
-    site_url       = $SiteUrl
-    uri_allow_list = $uriAllowList
-}
-$body = $bodyObj | ConvertTo-Json -Compress
+$body = "{""site_url"":$(ConvertTo-Json -Compress $SiteUrl),""uri_allow_list"":$(ConvertTo-Json -Compress $uriAllowList)}"
 
 $headers = @{
     Authorization  = "Bearer $Token"
