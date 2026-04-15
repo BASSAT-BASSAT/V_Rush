@@ -1,3 +1,25 @@
+[project]
+name = "kernellab-backend"
+version = "0.2.0"
+description = "KernelLab FastAPI API"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.109.0,<1",
+    "uvicorn[standard]>=0.27.0,<1",
+    "python-multipart>=0.0.9,<1",
+    "opencv-python-headless>=4.9.0,<5",
+    "numpy>=1.26.0,<3",
+    "pydantic>=2.5.0,<3",
+    "PyJWT>=2.8.0,<3",
+]
+
+[build-system]
+requires = ["hatchling>=1.18.0"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]

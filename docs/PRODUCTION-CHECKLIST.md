@@ -36,6 +36,8 @@ Do these once before (or right after) your first deploy. Dashboard steps need **
 
 Redeploy after changing environment variables.
 
+The backend uses **`uv`** on Vercel; `backend/pyproject.toml` must include a `[project]` table (and `backend/uv.lock` is committed for reproducible installs). If the CLI deploy fails with an invalid token, run `npx vercel login` once, then `npx vercel deploy --prod` from the repo root.
+
 ## 4. Local dev — split env files (optional)
 
 From the repo root in PowerShell:
