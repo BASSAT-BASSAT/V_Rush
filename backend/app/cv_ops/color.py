@@ -7,7 +7,7 @@ Original file is located at
     https://colab.research.google.com/drive/1EeYC7GK_3vfbgTH_ZO8ee9xUpZ5jKCru
 """
 
-"""Color space + channel operations (merged module)"""
+"""Color space + channel operations"""
 
 from __future__ import annotations
 
