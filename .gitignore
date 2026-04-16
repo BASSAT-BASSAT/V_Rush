@@ -18,6 +18,11 @@ backend/.env
 frontend/.env
 kernellab.env
 
+# Supabase CLI local cache
+supabase/.temp/
+
 # IDE
 .idea/
 .vscode/
+.vercel
+.env*.local

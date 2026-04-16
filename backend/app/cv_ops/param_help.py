@@ -18,6 +18,14 @@ OP_PARAM_HELP: dict[str, dict[str, str]] = {
         ),
     },
     "invert": {},
+    "log_transform": {},
+    "inverse_log_transform": {},
+    "dft_magnitude_spectrum": {
+        "spectrum_display": '"jet" for false-color spectrum, or "gray" for grayscale.',
+    },
+    "dft_phase_spectrum": {
+        "spectrum_display": '"jet" for false-color spectrum, or "gray" for grayscale.',
+    },
     "threshold_binary": {
         "thresh": "Grayscale threshold 0–255; pixels above → white, below → black.",
     },

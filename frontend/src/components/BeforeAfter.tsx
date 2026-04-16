@@ -33,32 +33,40 @@ export function BeforeAfter({ beforeUrl, afterSrc, lastKind }: Props) {
       </div>
 
       {mode === 'split' ? (
-        <div className="before-after__split">
-          <figure>
-            <figcaption>Before</figcaption>
-            <img src={beforeUrl} alt="Original" />
-          </figure>
-          <figure>
-            <figcaption>After</figcaption>
-            {afterSrc ? (
-              <img src={afterSrc} alt="Processed" />
-            ) : (
-              <div className="before-after__placeholder">Run pipeline</div>
-            )}
-          </figure>
+        <div className="before-after__viewport">
+          <div className="before-after__split">
+            <figure>
+              <figcaption>Before</figcaption>
+              <div className="before-after__img-wrap">
+                <img src={beforeUrl} alt="Original" />
+              </div>
+            </figure>
+            <figure>
+              <figcaption>After</figcaption>
+              {afterSrc ? (
+                <div className="before-after__img-wrap">
+                  <img src={afterSrc} alt="Processed" />
+                </div>
+              ) : (
+                <div className="before-after__placeholder">Run pipeline</div>
+              )}
+            </figure>
+          </div>
         </div>
       ) : (
         <div className="before-after__slider-wrap">
-          <div className="before-after__compare">
-            <img src={beforeUrl} alt="" className="before-after__layer before-after__layer--base" />
-            {afterSrc && (
-              <img
-                src={afterSrc}
-                alt=""
-                className="before-after__layer before-after__layer--top"
-                style={{ clipPath: `inset(0 0 0 ${slider}%)` }}
-              />
-            )}
+          <div className="before-after__viewport before-after__viewport--slider">
+            <div className="before-after__compare">
+              <img src={beforeUrl} alt="" className="before-after__layer before-after__layer--base" />
+              {afterSrc && (
+                <img
+                  src={afterSrc}
+                  alt=""
+                  className="before-after__layer before-after__layer--top"
+                  style={{ clipPath: `inset(0 0 0 ${slider}%)` }}
+                />
+              )}
+            </div>
           </div>
           <input
             type="range"

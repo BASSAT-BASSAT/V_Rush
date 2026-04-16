@@ -13,7 +13,9 @@ security = HTTPBearer(auto_error=False)
 
 
 def auth_disabled() -> bool:
-    return os.getenv("KERNELLAB_AUTH_DISABLED", "").lower() in ("1", "true", "yes")
+    # Vercel/dashboard values may include trailing newlines — strip before compare.
+    v = os.getenv("KERNELLAB_AUTH_DISABLED", "").strip().lower()
+    return v in ("1", "true", "yes")
 
 
 def jwt_secret() -> str | None:
@@ -58,7 +60,11 @@ async def require_user(
         except InvalidTokenError as e:
             raise HTTPException(
                 status_code=401,
-                detail="Invalid or expired token (check API SUPABASE_JWT_SECRET matches Project Settings → API → JWT Secret)",
+                detail=(
+                    "Invalid or expired token. If you use login: set API SUPABASE_JWT_SECRET to the "
+                    "same value as Supabase Project Settings → API → JWT Secret (Legacy JWT Secret). "
+                    "For CV-only / no-login mode: set KERNELLAB_AUTH_DISABLED=1 on the API and redeploy."
+                ),
             ) from e
 
     sub = payload.get("sub")

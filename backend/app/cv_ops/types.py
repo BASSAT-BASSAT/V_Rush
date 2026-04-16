@@ -21,3 +21,4 @@ class OpSpec:
     """Returns normalized params; raises ValueError on invalid input."""
     output_kind: str = "spatial"  # spatial | spectrum
     param_help: dict[str, str] = field(default_factory=dict)  # param name -> UI/API help
+    detail_doc: str = ""  # longer explanation for Reference UI

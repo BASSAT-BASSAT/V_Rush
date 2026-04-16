@@ -12,6 +12,16 @@ Classical computer vision playground: stack OpenCV-style operations, run a pipel
 
 For a step-by-step go-live list (SQL, Auth URLs, Vercel, CORS), see [`docs/PRODUCTION-CHECKLIST.md`](docs/PRODUCTION-CHECKLIST.md). To regenerate `frontend/.env` and `backend/.env` from `kernellab.env`, run `.\scripts\sync-kernellab-env.ps1` from the repo root.
 
+### CV-only deploy (no Supabase, no database)
+
+You can ship **only the OpenCV playground**: no login, no Postgres, no JWT setup.
+
+1. **Frontend (Vercel):** Delete or leave empty **`VITE_SUPABASE_URL`** and **`VITE_SUPABASE_ANON_KEY`**. Leave **`VITE_API_BASE_URL`** empty if the API is on the same deployment (Services) or set it to your API URL.
+2. **Backend:** Set **`KERNELLAB_AUTH_DISABLED=1`** so `/api/ops` and `/api/process` work **without** a Bearer token. You can omit **`SUPABASE_JWT_SECRET`**. Set **`CORS_ORIGINS`** to your site origin (e.g. `https://your-app.vercel.app`).
+3. **Redeploy** the frontend (so Vite omits Supabase) and the backend.
+
+The UI skips sign-in and the footer newsletter when Supabase is unset. **Anyone** can call your API while `KERNELLAB_AUTH_DISABLED=1`—use only for private demos or lock the deployment down.
+
 ## 1. Supabase setup
 
 1. Create a project at [supabase.com](https://supabase.com).
@@ -32,7 +42,7 @@ Use [`Dockerfile.backend`](Dockerfile.backend) or run uvicorn locally.
 | `SUPABASE_JWT_SECRET` | Yes (production) | Same as Supabase **JWT Secret** (HS256). |
 | `CORS_ORIGINS` | Yes (split deploy) | Comma-separated origins, e.g. `https://your-app.vercel.app` (no trailing slash on each). |
 | `PORT` | Usually auto | Listen port (default `8000`). |
-| `KERNELLAB_AUTH_DISABLED` | Dev only | Set to `1` to allow API calls **without** a Bearer token (local testing without Supabase). **Never** in public production. |
+| `KERNELLAB_AUTH_DISABLED` | CV-only / dev | Set to `1` to allow `/api/*` **without** a Bearer token (no Supabase login). OK for private demos; public sites should use real auth instead. |
 | `MAX_IMAGE_BYTES` | Optional | Default 8 MiB. |
 | `MAX_IMAGE_DIMENSION` | Optional | Default 4096 px. |
 

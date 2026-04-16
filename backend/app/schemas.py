@@ -20,6 +20,7 @@ class OpInfo(BaseModel):
     default_params: dict[str, Any]
     output_kind: str = "spatial"
     param_help: dict[str, str] = Field(default_factory=dict)
+    detail_doc: str = ""
 
 
 class OpsListResponse(BaseModel):

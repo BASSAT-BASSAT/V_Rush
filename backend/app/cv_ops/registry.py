@@ -47,6 +47,7 @@ def _build() -> dict[str, OpSpec]:
             validate_params=raw["validate_params"],
             output_kind=str(raw.get("output_kind", "spatial")),
             param_help=param_help,
+            detail_doc=str(raw.get("detail_doc", "")),
         )
     return out
 
@@ -58,6 +59,7 @@ def list_ops_public() -> list[dict[str, Any]]:
     """Serializable op list for GET /api/ops."""
     items = []
     for spec in sorted(OPERATIONS.values(), key=lambda s: (s.category, s.label)):
+        detail = spec.detail_doc.strip() or spec.description
         items.append(
             {
                 "id": spec.id,
@@ -67,6 +69,7 @@ def list_ops_public() -> list[dict[str, Any]]:
                 "default_params": spec.default_params,
                 "output_kind": spec.output_kind,
                 "param_help": spec.param_help,
+                "detail_doc": detail,
             }
         )
     return items

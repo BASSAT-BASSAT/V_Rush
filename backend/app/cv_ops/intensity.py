@@ -44,6 +44,23 @@ def apply_invert(bgr: np.ndarray, _params: dict) -> np.ndarray:
     return cv2.bitwise_not(bgr)
 
 
+_LOG256 = float(np.log(256.0))  # log(1 + 255)
+
+
+def apply_log_transform(bgr: np.ndarray, _params: dict) -> np.ndarray:
+    """s = 255 * log(1+x) / log(256), per channel, x in [0,255]."""
+    x = bgr.astype(np.float32)
+    s = 255.0 * np.log1p(x) / _LOG256
+    return np.clip(s, 0, 255).astype(np.uint8)
+
+
+def apply_inverse_log_transform(bgr: np.ndarray, _params: dict) -> np.ndarray:
+    """Inverse of apply_log_transform: x = exp(s/255 * log(256)) - 1."""
+    s = bgr.astype(np.float32)
+    r = np.exp(s / 255.0 * _LOG256) - 1.0
+    return np.clip(r, 0, 255).astype(np.uint8)
+
+
 def apply_threshold_binary(bgr: np.ndarray, params: dict) -> np.ndarray:
     t = clamp_int(params.get("thresh", 127), 0, 255)
     gray = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
@@ -140,6 +157,36 @@ INTENSITY_SPECS: list[dict] = [
         "default_params": {},
         "apply": apply_invert,
         "validate_params": lambda p: dict(p),
+    },
+    {
+        "id": "log_transform",
+        "label": "Log transform (spatial)",
+        "category": "intensity",
+        "description": (
+            "Compress dynamic range: s = 255·log(1+x)/log(256) per channel (inverse: inverse_log_transform)."
+        ),
+        "default_params": {},
+        "apply": apply_log_transform,
+        "validate_params": lambda p: dict(p),
+        "detail_doc": (
+            "Classic log compression on uint8 BGR: maps [0,255] monotonically to [0,255] with "
+            "stronger boost to dark regions. Pair with inverse_log_transform to expand back "
+            "without intermediate normalization."
+        ),
+    },
+    {
+        "id": "inverse_log_transform",
+        "label": "Inverse log transform (spatial)",
+        "category": "intensity",
+        "description": "Exact inverse of log_transform on uint8 BGR.",
+        "default_params": {},
+        "apply": apply_inverse_log_transform,
+        "validate_params": lambda p: dict(p),
+        "detail_doc": (
+            "Recovers linear intensities from images produced by log_transform: "
+            "x = exp(s/255·log(256)) − 1, clipped to 8-bit. Use immediately after log_transform "
+            "for a round-trip; other edits in between break the inverse relationship."
+        ),
     },
     {
         "id": "threshold_binary",

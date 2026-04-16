@@ -7,6 +7,8 @@ export interface OpInfo {
   output_kind: string
   /** Maps JSON param keys to short explanations */
   param_help: Record<string, string>
+  /** Longer explanation for Reference (falls back to description when empty on server) */
+  detail_doc: string
 }
 
 export interface ProcessResponse {

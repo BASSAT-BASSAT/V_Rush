@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import base64
 import json
+import os
 from typing import Any
 
 import cv2
@@ -27,6 +28,23 @@ router = APIRouter(tags=["cv"])
 def api_health() -> dict[str, str]:
     """Same payload as ``GET /health``; use when the API is only routed under ``/api`` (e.g. Vercel Services)."""
     return {"status": "ok", "app": "kernellab"}
+
+
+@router.get("/segmentation/status")
+def segmentation_status(_user_id: str = Depends(require_user)) -> dict[str, Any]:
+    """Spike: hosted segmentation is optional; keys stay server-side when wired."""
+    provider = os.getenv("SEGMENTATION_PROVIDER", "").strip() or "none"
+    has_url = bool(os.getenv("SEGMENTATION_API_URL", "").strip())
+    has_key = bool(os.getenv("SEGMENTATION_API_KEY", "").strip())
+    return {
+        "provider": provider,
+        "configured": has_url and has_key,
+        "message": (
+            "Set SEGMENTATION_API_URL and SEGMENTATION_API_KEY on the server to enable a hosted "
+            "segmentation provider (e.g. Replicate, Hugging Face Inference). Self-hosting large SAM "
+            "variants is GPU-heavy; an API is usually cheaper at small scale."
+        ),
+    }
 
 
 @router.get("/ops", response_model=OpsListResponse)
