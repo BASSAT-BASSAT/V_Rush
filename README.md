@@ -1,8 +1,8 @@
-# KernelLab
+# V-Rush
 
 Classical computer vision playground: stack OpenCV-style operations, run a pipeline on an image, and compare before/after.
 
-**Author:** Mohamed ElBassat
+**Co-Founders:** Mohamed Elbassat and Rokayya Aly
 
 ## Features
 

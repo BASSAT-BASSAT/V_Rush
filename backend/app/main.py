@@ -1,4 +1,4 @@
-"""FastAPI application — KernelLab."""
+"""FastAPI application — V-Rush."""
 
 from __future__ import annotations
 
@@ -19,7 +19,7 @@ from app.api.routes import router
 from app.config import settings
 
 app = FastAPI(
-    title="KernelLab",
+    title="V-Rush",
     version="0.2.0",
     description="Classical CV preprocessing playground",
 )

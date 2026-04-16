@@ -86,7 +86,7 @@ export function AuthScreen() {
   return (
     <div className="auth-screen">
       <div className="auth-screen__panel">
-        <p className="auth-screen__eyebrow">KernelLab</p>
+        <p className="auth-screen__eyebrow">V-Rush</p>
         <h2 className="auth-screen__title">{mode === 'signin' ? 'Sign in' : 'Create account'}</h2>
         <p className="auth-screen__hint">Use your email to access the CV playground. Confirm your email if required by your project settings.</p>
 

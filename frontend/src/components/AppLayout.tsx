@@ -51,7 +51,7 @@ export function AppLayout() {
                 </div>
                 <div className="brand__text">
                   <p className="brand__eyebrow">Classical computer vision</p>
-                  <h1 className="brand__title">KernelLab</h1>
+                  <h1 className="brand__title">V-Rush</h1>
                   <p className="tagline">Stack OpenCV-style ops, run the pipeline, compare before and after in one place.</p>
                 </div>
               </NavLink>
@@ -94,18 +94,22 @@ export function AppLayout() {
 
         <footer className="app__footer">
           <div className="app__footer-row">
-            <span className="app__footer-brand">KernelLab</span>
+            <span className="app__footer-brand">V-Rush</span>
             <span className="app__footer-sep" aria-hidden>
               ·
             </span>
-            <span className="app__footer-founder">
-              Founder: <strong>Mohamed ElBassat</strong>
+            <span className="app__footer-cofounders">
+              Co-Founders: <strong>Mohamed Elbassat</strong> and <strong>Rokayya Aly</strong>
             </span>
             <span className="app__footer-sep" aria-hidden>
               ·
             </span>
-            <a className="app__footer-link" href="mailto:mohamedd77bassat@gmail.com">
-              mohamedd77bassat@gmail.com
+            <a
+              className="app__footer-link"
+              href="mailto:mohamedd77bassat@gmail.com"
+              title="mohamedd77bassat@gmail.com"
+            >
+              Contact
             </a>
           </div>
           {!bypass && (

@@ -1,4 +1,4 @@
-/* KernelLab — optical lab shell */
+/* V-Rush — optical lab shell */
 
 .app {
   position: relative;
@@ -1010,7 +1010,7 @@
   color: var(--kl-text-muted);
 }
 
-.app__footer-founder strong {
+.app__footer-cofounders strong {
   font-weight: 600;
   color: var(--kl-text);
 }

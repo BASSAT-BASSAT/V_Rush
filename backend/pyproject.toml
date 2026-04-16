@@ -1,7 +1,7 @@
 [project]
 name = "kernellab-backend"
 version = "0.2.0"
-description = "KernelLab FastAPI API"
+description = "V-Rush FastAPI API"
 requires-python = ">=3.11"
 dependencies = [
     "fastapi>=0.109.0,<1",
