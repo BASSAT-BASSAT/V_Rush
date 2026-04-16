@@ -8,7 +8,7 @@ Original file is located at
 """
 
 # -*- coding: utf-8 -*-
-""" Intensity + Histogram + Advanced Intensity Operations (Merged Module) """
+""" Intensity + Histogram + Advanced Intensity Operations"""
 
 from __future__ import annotations
 
