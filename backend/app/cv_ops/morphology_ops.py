@@ -61,6 +61,4 @@ MORPH_SPECS: list[dict] = [
     make_morph_spec("open", "Open", "Opening (remove small bright spots)."),
     make_morph_spec("close", "Close", "Closing (fill small dark holes)."),
     make_morph_spec("gradient", "Morph gradient", "Difference dilate−erode."),
-    make_morph_spec("tophat", "Top-hat", "Image − opening."),
-    make_morph_spec("blackhat", "Black-hat", "Closing − image."),
 ]

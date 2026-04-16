@@ -79,6 +79,27 @@ OP_PARAM_HELP: dict[str, dict[str, str]] = {
         "threshold1": "First hysteresis threshold (lower of the two).",
         "threshold2": "Second hysteresis threshold (edges stronger than this are strong edges).",
     },
+    "log": {
+        "sigma": "Gaussian scale σ before Laplacian; larger smooths more before 2nd derivative.",
+        "laplacian_ksize": "Aperture for discrete Laplacian after Gaussian blur (odd, often 3).",
+    },
+    "dog": {
+        "sigma1": "Smaller Gaussian σ (narrower blur).",
+        "sigma2": "Larger Gaussian σ (wider blur); must be greater than sigma1.",
+    },
+    "lbp": {},
+    "glcm_contrast": {
+        "patch_size": "Odd window for local GLCM contrast (horizontal pairs); capped to image size.",
+        "levels": "Gray levels after quantization for the co-occurrence histogram (8–64).",
+    },
+    "gabor": {
+        "ksize": "Odd Gabor kernel size in pixels.",
+        "sigma": "Gaussian envelope standard deviation.",
+        "theta_deg": "Filter orientation in degrees (converted to radians for the kernel).",
+        "lambda": "Sinusoid wavelength along the oriented axis (OpenCV λ parameter).",
+        "gamma": "Spatial aspect ratio of the Gaussian envelope (ellipticity).",
+        "psi_deg": "Phase offset of the sinusoid in degrees.",
+    },
     "morph_erode": {
         "ksize": "Odd structuring element size (pixels).",
         "kernel_shape": "rect (default), ellipse, or cross.",

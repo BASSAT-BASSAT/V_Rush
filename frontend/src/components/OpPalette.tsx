@@ -10,6 +10,7 @@ const CATEGORY_ORDER = [
   'linear',
   'morphology',
   'edges',
+  'texture',
   'denoise',
   'noise',
   'fourier',

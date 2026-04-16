@@ -6,11 +6,17 @@ from typing import Any
 
 from app.cv_ops.color_ops import COLOR_SPECS
 from app.cv_ops.denoise import DENOISE_SPECS
+from app.cv_ops.dog import DOG_SPECS
 from app.cv_ops.edges import EDGES_SPECS
 from app.cv_ops.fourier import FOURIER_SPECS
+from app.cv_ops.gabor import GABOR_SPECS
 from app.cv_ops.geometric import GEOMETRIC_SPECS
+from app.cv_ops.glcm import GLCM_SPECS
 from app.cv_ops.intensity import INTENSITY_SPECS
+from app.cv_ops.lbp import LBP_SPECS
 from app.cv_ops.linear import LINEAR_SPECS
+from app.cv_ops.log import LOG_SPECS
+from app.cv_ops.morph_hat import MORPH_HAT_SPECS
 from app.cv_ops.morphology_ops import MORPH_SPECS
 from app.cv_ops.noise import NOISE_SPECS
 from app.cv_ops.param_help import OP_PARAM_HELP
@@ -21,11 +27,17 @@ _RAW: list[dict[str, Any]] = (
     + COLOR_SPECS
     + LINEAR_SPECS
     + EDGES_SPECS
+    + LOG_SPECS
+    + DOG_SPECS
     + MORPH_SPECS
+    + MORPH_HAT_SPECS
     + GEOMETRIC_SPECS
     + NOISE_SPECS
     + DENOISE_SPECS
     + FOURIER_SPECS
+    + LBP_SPECS
+    + GLCM_SPECS
+    + GABOR_SPECS
 )
 
 
