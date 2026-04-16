@@ -1,7 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { useOutletContext } from 'react-router-dom'
-import { fetchSegmentationStatus } from '../api/cv'
-import { useAuth } from '../hooks/useAuth'
 import type { OpInfo } from '../types/cv'
 import type { AppLayoutOutlet } from '../types/layout'
 
@@ -16,18 +14,8 @@ function groupByCategory(ops: OpInfo[]) {
 }
 
 export function ReferencePage() {
-  const { ops, opsError, accessToken } = useOutletContext<AppLayoutOutlet>()
-  const { bypass } = useAuth()
+  const { ops, opsError } = useOutletContext<AppLayoutOutlet>()
   const grouped = useMemo(() => groupByCategory(ops), [ops])
-  const [seg, setSeg] = useState<{ provider: string; configured: boolean; message: string } | null>(null)
-  const [segErr, setSegErr] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (bypass) return
-    fetchSegmentationStatus(accessToken)
-      .then(setSeg)
-      .catch((e: unknown) => setSegErr(e instanceof Error ? e.message : 'Failed to load segmentation status'))
-  }, [accessToken, bypass])
 
   return (
     <div className="ref-page">
@@ -40,31 +28,6 @@ export function ReferencePage() {
           does, how outputs differ (spatial image vs frequency spectrum), and JSON parameter hints.
         </p>
       </section>
-
-      {!bypass && (
-        <section className="ref-page__segment dock-panel">
-          <h3 className="ref-page__seg-title">Segmentation (planned)</h3>
-          <p className="ref-page__seg-body">
-            Running Segment Anything–class models on your own GPU is expensive. A practical approach is a small backend proxy that
-            calls a hosted inference API (keys stay on the server). KernelLab does not run segmentation in the pipeline yet; this
-            status reflects optional server configuration.
-          </p>
-          {segErr && <p className="ref-page__seg-note ref-page__seg-note--warn">{segErr}</p>}
-          {seg && (
-            <dl className="ref-page__seg-dl">
-              <div>
-                <dt>Provider</dt>
-                <dd>{seg.provider}</dd>
-              </div>
-              <div>
-                <dt>Configured</dt>
-                <dd>{seg.configured ? 'Yes' : 'No'}</dd>
-              </div>
-            </dl>
-          )}
-          {seg && <p className="ref-page__seg-note">{seg.message}</p>}
-        </section>
-      )}
 
       <div className="ref-page__sections">
         {grouped.map(([cat, list]) => (

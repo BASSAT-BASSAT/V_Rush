@@ -30,17 +30,6 @@ export async function fetchOps(accessToken?: string | null): Promise<OpInfo[]> {
   return data.ops as OpInfo[]
 }
 
-export async function fetchSegmentationStatus(accessToken?: string | null): Promise<{
-  provider: string
-  configured: boolean
-  message: string
-}> {
-  const url = `${base()}/api/segmentation/status`
-  const res = await fetch(url, { headers: authHeaders(accessToken) })
-  if (!res.ok) throw new Error(await readApiError(res, 'Segmentation status'))
-  return res.json() as Promise<{ provider: string; configured: boolean; message: string }>
-}
-
 export async function processImage(
   file: File,
   pipeline: unknown[],

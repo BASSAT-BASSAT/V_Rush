@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { fetchOps } from '../api/cv'
 import { NewsletterForm } from './NewsletterForm'
+import { ThemeToggle } from './ThemeToggle'
 import { useAuth } from '../hooks/useAuth'
 import type { AppLayoutOutlet } from '../types/layout'
 
@@ -33,11 +34,11 @@ export function AppLayout() {
                   <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" className="brand__svg">
                     <defs>
                       <linearGradient id="klg" x1="8" y1="4" x2="34" y2="36" gradientUnits="userSpaceOnUse">
-                        <stop stopColor="#5eead4" />
-                        <stop offset="1" stopColor="#a78bfa" />
+                        <stop stopColor="#c4b5fd" />
+                        <stop offset="1" stopColor="#8b5cf6" />
                       </linearGradient>
                     </defs>
-                    <rect x="4" y="4" width="32" height="32" rx="9" stroke="url(#klg)" strokeWidth="2" fill="rgba(94,234,212,0.06)" />
+                    <rect x="4" y="4" width="32" height="32" rx="9" stroke="url(#klg)" strokeWidth="2" fill="rgba(139,92,246,0.08)" />
                     <path
                       d="M12 20h6l4-8 4 16 4-8h6"
                       stroke="url(#klg)"
@@ -69,6 +70,7 @@ export function AppLayout() {
                   </NavLink>
                 )}
               </nav>
+              <ThemeToggle />
               {!bypass && session && (
                 <div className="app__user">
                   <span className="app__user-email" title={session.user.email ?? ''}>

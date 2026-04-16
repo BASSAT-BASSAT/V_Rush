@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import type { OpInfo } from '../types/cv'
 
 /** Sensible order for CV pipelines (matches common processing flow). */
@@ -48,7 +49,6 @@ export function OpPalette({ ops, onAdd, disabled }: Props) {
   const categories = useMemo(() => sortCategories([...grouped.keys()]), [grouped])
 
   const [pickedTopic, setPickedTopic] = useState<string | null>(null)
-  const [hoverOp, setHoverOp] = useState<OpInfo | null>(null)
 
   const topic = useMemo(() => {
     if (categories.length === 0) return ''
@@ -58,12 +58,16 @@ export function OpPalette({ ops, onAdd, disabled }: Props) {
 
   const currentOps = topic ? (grouped.get(topic) ?? []) : []
 
-  const detailOp = hoverOp
-
   return (
     <div className="op-palette">
       <h2 className="panel-title">Operations</h2>
-      <p className="panel-hint">Choose a topic, then hover or add a method.</p>
+      <p className="panel-hint">
+        Choose a topic, then click a method to add it to the pipeline.{' '}
+        <Link to="/reference" className="op-palette__ref-link">
+          Reference
+        </Link>{' '}
+        has full descriptions and parameter notes.
+      </p>
 
       <label className="op-palette__field">
         <span className="op-palette__label">Topic</span>
@@ -96,42 +100,12 @@ export function OpPalette({ ops, onAdd, disabled }: Props) {
             role="option"
             className="op-palette__btn"
             disabled={disabled}
-            onMouseEnter={() => setHoverOp(o)}
-            onMouseLeave={() => setHoverOp(null)}
-            onFocus={() => setHoverOp(o)}
-            onBlur={() => setHoverOp(null)}
             onClick={() => onAdd(o)}
           >
             <span className="op-palette__btn-label">{o.label}</span>
             <span className="op-palette__btn-meta">{o.output_kind}</span>
           </button>
         ))}
-      </div>
-
-      <div className="op-palette__detail" aria-live="polite">
-        {detailOp ? (
-          <>
-            <div className="op-palette__detail-head">{detailOp.label}</div>
-            <p className="op-palette__detail-desc">{detailOp.description}</p>
-            {Object.keys(detailOp.param_help ?? {}).length > 0 && (
-              <div className="op-palette__detail-params">
-                <span className="op-palette__detail-params-title">Parameters</span>
-                <dl className="op-palette__dl">
-                  {Object.entries(detailOp.param_help).map(([k, text]) => (
-                    <div key={k} className="op-palette__dl-row">
-                      <dt>
-                        <code>{k}</code>
-                      </dt>
-                      <dd>{text}</dd>
-                    </div>
-                  ))}
-                </dl>
-              </div>
-            )}
-          </>
-        ) : (
-          <p className="op-palette__detail-placeholder">Hover a method to see what it does and how params behave.</p>
-        )}
       </div>
     </div>
   )

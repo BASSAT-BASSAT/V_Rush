@@ -87,7 +87,6 @@ export function ProfilePage() {
     <div className="profile-page">
       <section className="dock-panel profile-page__panel">
         <h2 className="profile-page__title">Your profile</h2>
-        <p className="profile-page__hint">Information is stored in your Supabase profile row (visible only to you via RLS).</p>
 
         {error && <div className="banner banner--error">{error}</div>}
         {message && <div className="banner banner--ok">{message}</div>}
