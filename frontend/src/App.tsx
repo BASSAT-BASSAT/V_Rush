@@ -1,4 +1,5 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { Analytics } from '@vercel/analytics/react'
 import { AuthScreen } from './components/AuthScreen'
 import { AppLayout } from './components/AppLayout'
 import { useAuth } from './hooks/useAuth'
@@ -37,6 +38,7 @@ function App() {
           <Route path="profile" element={bypass ? <Navigate to="/" replace /> : <ProfilePage />} />
         </Route>
       </Routes>
+      <Analytics />
     </BrowserRouter>
   )
 }
