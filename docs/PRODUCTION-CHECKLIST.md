@@ -47,22 +47,21 @@ npx supabase db push
 
 ## 4. Vercel
 
-**Option A — Frontend only** (API on Render, etc.)
+**Recommended — all on Vercel (Services)** — repo root [`vercel.json`](../vercel.json)
+
+- **Root Directory:** `.` (repository root), **not** `frontend`.
+- **Framework:** **Services** (detected from `experimentalServices`).
+- **Frontend** service (Vite): set all `VITE_*` variables. Use **`VITE_API_BASE_URL` empty** so the app calls same-origin `/api/...`.
+- **Backend** service (FastAPI): `SUPABASE_JWT_SECRET`, `CORS_ORIGINS` (include your `https://….vercel.app`), optional `KERNELLAB_AUTH_DISABLED`, `MAX_*`.
+
+Redeploy after changing environment variables (Vite needs a rebuild when `VITE_*` change).
+
+The backend uses **`uv`** on Vercel; [`backend/pyproject.toml`](../backend/pyproject.toml) has `[project]` and [`backend/uv.lock`](../backend/uv.lock) is committed. From the repo root: `npx vercel login` if needed, then `npx vercel deploy --prod`.
+
+**Fallback — frontend only** (API on Render, Railway, etc.)
 
 - **Root Directory:** `frontend`.
-- Import env from `kernellab.env` or set manually: all `VITE_*` variables.
-- Set **`VITE_API_BASE_URL`** to your API origin (no trailing slash).
-
-**Option B — Vercel Services** (repo root [`vercel.json`](../vercel.json))
-
-- **Root Directory:** `.` (repository root).
-- **Framework:** Services.
-- **Frontend** service: `VITE_*` only (often `VITE_API_BASE_URL` empty).
-- **Backend** service: `SUPABASE_JWT_SECRET`, `CORS_ORIGINS`, `KERNELLAB_AUTH_DISABLED`, `MAX_*`.
-
-Redeploy after changing environment variables.
-
-The backend uses **`uv`** on Vercel; `backend/pyproject.toml` must include a `[project]` table (and `backend/uv.lock` is committed for reproducible installs). If the CLI deploy fails with an invalid token, run `npx vercel login` once, then `npx vercel deploy --prod` from the repo root.
+- Set all `VITE_*` variables and **`VITE_API_BASE_URL`** to your API origin (no trailing slash).
 
 ## 5. Local dev — split env files (optional)
 

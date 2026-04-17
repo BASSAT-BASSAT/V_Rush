@@ -8,7 +8,7 @@ Classical computer vision playground: stack OpenCV-style operations, run a pipel
 
 - **Auth (Supabase):** Email + password sign-in; JWT verified on the Python API for `/api/ops` and `/api/process`.
 - **Database (Supabase Postgres):** `profiles` (synced from signups), `email_subscribers` (footer newsletter), `usage_logs` (one row per successful pipeline run when logged in).
-- **Deploy:** Frontend on **Vercel** (or similar); API on **Render / Railway / Fly.io** via [`Dockerfile.backend`](Dockerfile.backend); optional **single-container** UI+API via root [`Dockerfile`](Dockerfile).
+- **Deploy (recommended):** **All on Vercel** — one project with **Services** ([`vercel.json`](vercel.json)): Vite frontend at `/` and FastAPI at `/api` on the same domain. **Fallback:** API on **Render / Railway / Fly** via [`Dockerfile.backend`](Dockerfile.backend), frontend-only Vercel with `VITE_API_BASE_URL`; optional **single-container** via root [`Dockerfile`](Dockerfile).
 
 For a step-by-step go-live list (SQL, Auth URLs, Vercel, CORS), see [`docs/PRODUCTION-CHECKLIST.md`](docs/PRODUCTION-CHECKLIST.md). To regenerate `frontend/.env` and `backend/.env` from `kernellab.env`, run `.\scripts\sync-kernellab-env.ps1` from the repo root.
 
@@ -33,51 +33,55 @@ The UI skips sign-in and the footer newsletter when Supabase is unset. **Anyone*
 
 Enable **Email** auth under Authentication → Providers if it is not already on.
 
-## 2. Backend (API host)
+## 2. Deploy — all on Vercel (recommended)
 
-Use [`Dockerfile.backend`](Dockerfile.backend) or run uvicorn locally.
+This is the **default** setup: **one Vercel project**, **no separate API host**. The repo root [`vercel.json`](vercel.json) defines two **Services**: Vite (`frontend/`) at `/` and FastAPI (`backend/app/main.py`) at `/api`.
+
+1. In [Vercel](https://vercel.com), **Import** this Git repository.
+2. **Root Directory:** **`.`** (repository root). Do **not** set it to `frontend` for this mode.
+3. **Framework preset:** **Services** (Vercel detects `experimentalServices` in `vercel.json`).
+4. **Environment variables** (Production — set on the right **service** where the dashboard allows, or as shared project vars as documented in Vercel):
+
+   | Where | Variable | Value |
+   |--------|----------|--------|
+   | Frontend build | `VITE_API_BASE_URL` | **Empty** — same-origin calls to `/api/...` |
+   | Frontend build | `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` | From Supabase (§1) |
+   | Backend (Python) | `SUPABASE_JWT_SECRET` | Supabase JWT secret (§1) |
+   | Backend (Python) | `CORS_ORIGINS` | Your site origin(s), e.g. `https://YOUR_PROJECT.vercel.app` (comma-separated, no spaces) |
+   | Optional | `KERNELLAB_AUTH_DISABLED`, `MAX_*` | See table below |
+
+5. **Redeploy** after changing env vars (Vite bakes `VITE_*` at build time).
+
+**Health check:** `GET /api/health` should return JSON with `"status":"ok"`.
+
+Dependencies for the Python service come from [`backend/pyproject.toml`](backend/pyproject.toml) (Vercel uses **uv**; [`backend/uv.lock`](backend/uv.lock) is committed for reproducible installs). See [`docs/PRODUCTION-CHECKLIST.md`](docs/PRODUCTION-CHECKLIST.md) for CLI deploy notes.
+
+**If the Python service fails to build** (bundle size, native wheels, or memory): fall back to [split deploy](#3-split-deploy-vercel--external-api) below.
+
+### Backend environment reference (Vercel or any host)
 
 | Variable | Required | Purpose |
 |----------|----------|---------|
-| `SUPABASE_JWT_SECRET` | Yes (production) | Same as Supabase **JWT Secret** (HS256). |
-| `CORS_ORIGINS` | Yes (split deploy) | Comma-separated origins, e.g. `https://your-app.vercel.app` (no trailing slash on each). |
+| `SUPABASE_JWT_SECRET` | Yes (production with auth) | Same as Supabase **JWT Secret** (HS256). |
+| `CORS_ORIGINS` | Yes | Comma-separated origins, e.g. `https://your-app.vercel.app` (no trailing slash on each). |
 | `PORT` | Usually auto | Listen port (default `8000`). |
-| `KERNELLAB_AUTH_DISABLED` | CV-only / dev | Set to `1` to allow `/api/*` **without** a Bearer token (no Supabase login). OK for private demos; public sites should use real auth instead. |
+| `KERNELLAB_AUTH_DISABLED` | CV-only / dev | Set to `1` to allow `/api/*` **without** a Bearer token. |
 | `MAX_IMAGE_BYTES` | Optional | Default 8 MiB. |
 | `MAX_IMAGE_DIMENSION` | Optional | Default 4096 px. |
 
-**Object detection (YOLO26):** The API includes Ultralytics YOLO26n (`yolo26_detect` in the pipeline). That pulls **PyTorch** and increases **Docker image size and RAM** versus OpenCV-only. Detection runs on the **API host** (not the Vercel static frontend). For faster cold starts, bake `yolo26n.pt` into the image (see comments in [`Dockerfile.backend`](Dockerfile.backend)). Ultralytics is **AGPL-3.0**—confirm licensing for your product.
+**Object detection (YOLO26):** `yolo26_detect` uses **Ultralytics** and **PyTorch** — large bundle and RAM. On Vercel, ensure the backend service has enough **memory** in `vercel.json` (already set to 3008 MB); if deploys fail, use Docker + a dedicated host (below). Ultralytics is **AGPL-3.0** — confirm licensing. For Docker images, you can bake `yolo26n.pt` into the image (see [`Dockerfile.backend`](Dockerfile.backend)).
 
-Example (Render / Railway): connect the repo, Dockerfile path `Dockerfile.backend`, set the env vars above.
+Copy [`frontend/.env.example`](frontend/.env.example) or [`kernellab.env.example`](kernellab.env.example) as a checklist. Run `.\scripts\sync-kernellab-env.ps1` locally to split env into `frontend/.env` and `backend/.env`.
 
-## 3. Frontend (Vercel)
+## 3. Split deploy (Vercel + external API)
 
-1. Import the Git repo in Vercel.
-2. Set **Root Directory** to `frontend`.
-3. **Build:** `npm run build` (default). **Output:** `dist`.
-4. **Environment variables** (Production):
+Use this if you **only** deploy the static app on Vercel or the full-stack Vercel build fails.
 
-| Variable | Example |
-|----------|---------|
-| `VITE_API_BASE_URL` | `https://your-api.onrender.com` (no trailing slash) |
-| `VITE_SUPABASE_URL` | `https://xxxx.supabase.co` |
-| `VITE_SUPABASE_ANON_KEY` | `eyJ...` (anon key) |
+1. **Frontend project:** Root Directory **`frontend`**, Framework **Vite**, build `npm run build`, output `dist`.
+2. Set **`VITE_API_BASE_URL`** to your API origin (no trailing slash), e.g. `https://your-api.onrender.com`.
+3. **API:** Deploy [`Dockerfile.backend`](Dockerfile.backend) on Render / Railway / Fly.io and set the same backend env vars as in the table above.
 
-5. Redeploy after changing env vars.
-
-Copy [`frontend/.env.example`](frontend/.env.example) as a checklist. For one combined list (e.g. Vercel import), use [`kernellab.env.example`](kernellab.env.example) at the repo root—copy to `kernellab.env`, fill in, and keep that file out of git.
-
-### Vercel Services (frontend + FastAPI in one project)
-
-Use [`vercel.json`](vercel.json) at the **repository root** and set the Vercel project **Framework** to **Services** (not “Vite” only). Use **Root Directory** **`.`** (entire repo), not `frontend`.
-
-- The API is mounted at **`/api`**, matching existing routes (`/api/ops`, …). Set **`VITE_API_BASE_URL` empty** so the browser uses same-origin `/api/...`.
-- Configure **`SUPABASE_JWT_SECRET`**, **`CORS_ORIGINS`** (your `https://…vercel.app`), and optional limits on the **backend** service environment in Vercel.
-- Health for the API behind `/api`: **`GET /api/health`** (see [`backend/app/api/routes.py`](backend/app/api/routes.py)).
-
-The UI example `/_/backend` would require a different `routePrefix` **and** matching path prefixes in FastAPI; this repo uses **`/api`** for Services instead.
-
-**OpenCV** may exceed Vercel Python limits. If the backend build fails, keep deploying the API with [`Dockerfile.backend`](Dockerfile.backend) on Render (or similar) and use [Frontend (Vercel)](#3-frontend-vercel) with **Root Directory** `frontend` and `VITE_API_BASE_URL` pointing at that host.
+Same Supabase and CORS rules apply; **`CORS_ORIGINS`** on the API must include your Vercel URL.
 
 ## 4. Local development
 

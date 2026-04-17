@@ -893,6 +893,180 @@
   box-shadow: 0 0 0 2px var(--kl-violet-dim);
 }
 
+/* —— YOLO26 param editor (COCO 80) —— */
+.yolo26-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.yolo26-editor__intro {
+  margin: 0;
+  font-size: 0.72rem;
+  line-height: 1.45;
+  color: var(--kl-text-muted);
+}
+
+.yolo26-editor__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.5rem 0.75rem;
+}
+
+.yolo26-editor__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 5rem;
+}
+
+.yolo26-editor__field input[type='number'] {
+  width: 5.5rem;
+  font-family: var(--kl-font-mono);
+  font-size: 0.76rem;
+  padding: 0.35rem 0.45rem;
+  border: 1px solid var(--kl-border);
+  border-radius: 6px;
+  background: var(--kl-code-surface);
+  color: var(--kl-text);
+}
+
+.yolo26-editor__field input:focus {
+  outline: none;
+  border-color: var(--kl-violet);
+  box-shadow: 0 0 0 2px var(--kl-violet-dim);
+}
+
+.yolo26-editor__label {
+  font-size: 0.62rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--kl-text-dim);
+}
+
+.yolo26-editor__check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.78rem;
+  color: var(--kl-text);
+  cursor: pointer;
+  user-select: none;
+  margin-bottom: 0.15rem;
+}
+
+.yolo26-editor__check input {
+  accent-color: var(--kl-accent);
+}
+
+.yolo26-editor__class-head {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.yolo26-editor__search-label {
+  font-size: 0.62rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--kl-text-dim);
+}
+
+.yolo26-editor__search {
+  width: 100%;
+  box-sizing: border-box;
+  font-size: 0.78rem;
+  padding: 0.4rem 0.5rem;
+  border: 1px solid var(--kl-border);
+  border-radius: 6px;
+  background: var(--kl-bg-elevated);
+  color: var(--kl-text);
+}
+
+.yolo26-editor__search:focus {
+  outline: none;
+  border-color: var(--kl-violet);
+  box-shadow: 0 0 0 2px var(--kl-violet-dim);
+}
+
+.yolo26-editor__bulk {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.yolo26-editor__selection {
+  margin: 0;
+  font-size: 0.7rem;
+  line-height: 1.45;
+  color: var(--kl-text-muted);
+  padding: 0.35rem 0.45rem;
+  border-radius: 6px;
+  background: var(--kl-help-surface);
+  border: 1px solid var(--kl-border);
+  max-height: 4.5rem;
+  overflow: auto;
+}
+
+.yolo26-editor__class-list {
+  list-style: none;
+  margin: 0;
+  padding: 0.35rem 0.45rem;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.25rem 0.65rem;
+  max-height: 11rem;
+  overflow: auto;
+  border: 1px solid var(--kl-border);
+  border-radius: 6px;
+  background: var(--kl-code-surface);
+}
+
+@media (min-width: 420px) {
+  .yolo26-editor__class-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.yolo26-editor__class-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.35rem;
+  font-size: 0.72rem;
+  line-height: 1.35;
+}
+
+.yolo26-editor__class-item input {
+  margin-top: 0.12rem;
+  accent-color: var(--kl-accent);
+  flex-shrink: 0;
+}
+
+.yolo26-editor__class-item label {
+  cursor: pointer;
+  color: var(--kl-text);
+  overflow-wrap: anywhere;
+}
+
+.yolo26-editor__raw {
+  margin-top: 0.15rem;
+  font-size: 0.72rem;
+  color: var(--kl-text-muted);
+}
+
+.yolo26-editor__raw summary {
+  cursor: pointer;
+  user-select: none;
+  padding: 0.2rem 0;
+}
+
+.yolo26-editor__raw-ta {
+  margin-top: 0.35rem;
+}
+
 .pipeline-stack__help {
   margin-top: 0.55rem;
   padding: 0.5rem 0.45rem;

@@ -1,4 +1,5 @@
 import { useCallback } from 'react'
+import { Yolo26ParamsEditor } from './Yolo26ParamsEditor'
 import type { OpInfo, PipelineStepUI } from '../types/cv'
 
 interface Props {
@@ -67,18 +68,30 @@ export function PipelineStack({
                 </div>
               </div>
               {meta?.description && <p className="pipeline-stack__blurb">{meta.description}</p>}
-              <label className="pipeline-stack__params-label" htmlFor={`params-${s.key}`}>
-                params (JSON)
-              </label>
-              <textarea
-                id={`params-${s.key}`}
-                className="pipeline-stack__params"
-                value={s.paramsJson}
-                spellCheck={false}
-                onChange={(e) => onChangeParams(s.key, e.target.value)}
-                rows={4}
-                aria-describedby={Object.keys(help).length ? `help-${s.key}` : undefined}
-              />
+              {s.op === 'yolo26_detect' ? (
+                <div aria-describedby={Object.keys(help).length ? `help-${s.key}` : undefined}>
+                  <span className="pipeline-stack__params-label">Parameters</span>
+                  <Yolo26ParamsEditor
+                    paramsJson={s.paramsJson}
+                    onChangeParamsJson={(json) => onChangeParams(s.key, json)}
+                  />
+                </div>
+              ) : (
+                <>
+                  <label className="pipeline-stack__params-label" htmlFor={`params-${s.key}`}>
+                    params (JSON)
+                  </label>
+                  <textarea
+                    id={`params-${s.key}`}
+                    className="pipeline-stack__params"
+                    value={s.paramsJson}
+                    spellCheck={false}
+                    onChange={(e) => onChangeParams(s.key, e.target.value)}
+                    rows={4}
+                    aria-describedby={Object.keys(help).length ? `help-${s.key}` : undefined}
+                  />
+                </>
+              )}
               {Object.keys(help).length > 0 && (
                 <div className="pipeline-stack__help" id={`help-${s.key}`}>
                   <span className="pipeline-stack__help-title">Parameter hints</span>
