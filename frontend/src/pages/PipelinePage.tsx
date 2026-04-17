@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useOutletContext } from 'react-router-dom'
 import { processImage } from '../api/cv'
+import { pipelineToPython } from '../lib/pipelineToPython'
 import { BeforeAfter } from '../components/BeforeAfter'
 import { FileDrop } from '../components/FileDrop'
 import { OpPalette } from '../components/OpPalette'
@@ -56,22 +57,29 @@ export function PipelinePage() {
     ])
   }, [])
 
+  const parseSteps = useCallback(() => {
+    return steps.map((s) => {
+      let parsed: unknown
+      try {
+        parsed = JSON.parse(s.paramsJson || '{}')
+      } catch {
+        throw new Error(`Invalid JSON for ${s.op}`)
+      }
+      const params =
+        typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)
+          ? (parsed as Record<string, unknown>)
+          : {}
+      return { op: s.op, params }
+    })
+  }, [steps])
+
   const run = useCallback(async () => {
     if (!file) return
     setLoadingRun(true)
     setProcError(null)
     setResult(null)
     try {
-      const pipeline = steps.map((s) => {
-        let params: Record<string, unknown> = {}
-        try {
-          const parsed: unknown = JSON.parse(s.paramsJson || '{}')
-          params = typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : {}
-        } catch {
-          throw new Error(`Invalid JSON for ${s.op}`)
-        }
-        return { op: s.op, params }
-      })
+      const pipeline = parseSteps()
       const res = await processImage(file, pipeline, accessToken)
       setResult(res)
     } catch (e) {
@@ -79,7 +87,7 @@ export function PipelinePage() {
     } finally {
       setLoadingRun(false)
     }
-  }, [file, steps, accessToken])
+  }, [file, parseSteps, accessToken])
 
   const onMove = useCallback((key: string, dir: -1 | 1) => {
     setSteps((prev) => {
@@ -111,18 +119,12 @@ export function PipelinePage() {
   )
 
   const copyPipelineJson = useCallback(() => {
-    const pipeline = steps.map((s) => {
-      let params: Record<string, unknown> = {}
-      try {
-        const parsed: unknown = JSON.parse(s.paramsJson || '{}')
-        params = typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : {}
-      } catch {
-        params = {}
-      }
-      return { op: s.op, params }
-    })
-    void navigator.clipboard.writeText(JSON.stringify(pipeline, null, 2))
-  }, [steps])
+    void navigator.clipboard.writeText(JSON.stringify(parseSteps(), null, 2))
+  }, [parseSteps])
+
+  const copyPythonExport = useCallback(() => {
+    void navigator.clipboard.writeText(pipelineToPython(parseSteps()))
+  }, [parseSteps])
 
   return (
     <>
@@ -171,8 +173,17 @@ export function PipelinePage() {
               <button type="button" className="btn" disabled={steps.length === 0} onClick={copyPipelineJson}>
                 Copy JSON
               </button>
+              <button
+                type="button"
+                className="btn"
+                disabled={steps.length === 0}
+                onClick={copyPythonExport}
+                title="OpenCV + NumPy script: img → out (paste into a .py file)"
+              >
+                Export Python
+              </button>
               {result && (
-                <a className="btn btn--ghost" href={afterSrc ?? '#'} download="kernellab-output.png">
+                <a className="btn btn--ghost" href={afterSrc ?? '#'} download="v-rush-output.png">
                   Download
                 </a>
               )}

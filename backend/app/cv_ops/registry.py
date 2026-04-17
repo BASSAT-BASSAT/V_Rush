@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from app.cv_ops.color import COLOR_SPECS
+from app.cv_ops.color import COLOR_ADDITIONS_SPECS, COLOR_SPECS
 from app.cv_ops.denoise import DENOISE_SPECS
 from app.cv_ops.dog import DOG_SPECS
 from app.cv_ops.edges import EDGES_SPECS
@@ -19,12 +19,13 @@ from app.cv_ops.log import LOG_SPECS
 from app.cv_ops.morph_hat import MORPH_HAT_SPECS
 from app.cv_ops.morphology_ops import MORPH_SPECS
 from app.cv_ops.noise import NOISE_SPECS
-from app.cv_ops.param_help import OP_PARAM_HELP
+from app.cv_ops.param_help import OP_DETAIL_DOC, OP_PARAM_HELP
 from app.cv_ops.types import OpSpec
 
 _RAW: list[dict[str, Any]] = (
     INTENSITY_SPECS
     + COLOR_SPECS
+    + COLOR_ADDITIONS_SPECS
     + LINEAR_SPECS
     + EDGES_SPECS
     + LOG_SPECS
@@ -59,7 +60,7 @@ def _build() -> dict[str, OpSpec]:
             validate_params=raw["validate_params"],
             output_kind=str(raw.get("output_kind", "spatial")),
             param_help=param_help,
-            detail_doc=str(raw.get("detail_doc", "")),
+            detail_doc=str(raw.get("detail_doc", "") or OP_DETAIL_DOC.get(oid, "")),
         )
     return out
 

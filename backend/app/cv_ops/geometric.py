@@ -1,7 +1,6 @@
-# -*- coding: utf-8 -*-
-from __future__ import annotations
+"""Geometric transforms: resize, rotate, crop, pyramid, flip, translate, shear."""
 
-"""Geometric transforms: resize, rotate, crop, pyramid, etc."""
+from __future__ import annotations
 
 import cv2
 import numpy as np
@@ -167,7 +166,7 @@ GEOMETRIC_ADDITIONS_SPECS: list[dict] = [
 ]
 
 
-GEOMETRIC_SPECS: list[dict] = [
+GEOMETRIC_CORE_SPECS: list[dict] = [
     {
         "id": "resize",
         "label": "Resize",
@@ -214,3 +213,6 @@ GEOMETRIC_SPECS: list[dict] = [
         "validate_params": validate_crop,
     },
 ]
+
+# Registry/API: flip, translate, shear, then resize / rotate / pyramid / crop.
+GEOMETRIC_SPECS: list[dict] = GEOMETRIC_ADDITIONS_SPECS + GEOMETRIC_CORE_SPECS

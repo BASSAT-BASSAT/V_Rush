@@ -25,8 +25,11 @@ export function ReferencePage() {
       <section className="ref-page__intro dock-panel">
         <h2 className="ref-page__title">Operation reference</h2>
         <p className="ref-page__lead">
-          Each pipeline step is a classical OpenCV-style operation. Short labels appear in the palette; this page expands what each
-          does, how outputs differ (spatial image vs frequency spectrum), and JSON parameter hints.
+          Each pipeline step maps to a classical OpenCV-style operation on the server. Short labels appear in the palette; here you
+          get the full <strong>detail</strong> text, per-parameter hints (same as the pipeline sidebar), and whether the result is a
+          normal BGR image (<code>spatial</code>) or a spectrum-style view (<code>spectrum</code>). After you tune JSON in the
+          pipeline, use <strong>Export Python</strong> on the main page to copy an OpenCV + NumPy script from <code>img</code> to{' '}
+          <code>out</code>.
         </p>
       </section>
 

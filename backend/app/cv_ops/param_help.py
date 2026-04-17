@@ -1,176 +1,384 @@
-"""Human-readable help for each operation and its JSON params (API + UI)."""
+"""Human-readable help for each operation (params + reference copy).
+
+Merged into OpSpec: OP_PARAM_HELP supplies JSON key hints; OP_DETAIL_DOC supplies
+longer Reference text when a spec omits its own ``detail_doc``.
+"""
 
 from __future__ import annotations
 
-# op_id -> param_name -> short explanation
+# op_id -> param_name -> short explanation (palette + API hints)
 OP_PARAM_HELP: dict[str, dict[str, str]] = {
+    # —— Intensity ——
     "normalize_minmax": {},
     "equalize_histogram": {},
     "clahe": {
         "clip_limit": (
-            "CLAHE contrast clipping limit; higher = stronger local contrast (can amplify noise)."
+            "CLAHE clipping limit; higher = stronger local contrast (can amplify noise). Typical 1–4."
         ),
-        "tile_grid_size": "Grid cell size for local histogram equalization (pixels per tile side).",
+        "tile_grid_size": "Side length in pixels of each histogram tile (square grid). Smaller tiles = more local adaptation.",
     },
     "gamma": {
-        "gamma": (
-            "Power-law V^γ per channel: γ>1 darkens mid-tones, γ<1 brightens, γ=1 is linear."
-        ),
+        "gamma": "Output ≈ input^γ on 8-bit channels. γ<1 brightens mid-tones, γ>1 darkens, γ=1 unchanged.",
     },
     "invert": {},
     "log_transform": {},
     "inverse_log_transform": {},
-    "dft_magnitude_spectrum": {
-        "spectrum_display": '"jet" for false-color spectrum, or "gray" for grayscale.',
-    },
-    "dft_phase_spectrum": {
-        "spectrum_display": '"jet" for false-color spectrum, or "gray" for grayscale.',
-    },
     "threshold_binary": {
-        "thresh": "Grayscale threshold 0–255; pixels above → white, below → black.",
+        "thresh": "Fixed threshold on grayscale (0–255): pixels above → 255, below → 0; output 3-channel BGR.",
     },
     "threshold_otsu": {},
-    "threshold_adaptive_mean": {
-        "block_size": "Odd window size for local mean (neighborhood size in pixels).",
-        "C": "Constant subtracted from the mean before comparison (fine-tunes boundary).",
+    "adaptive_mean": {
+        "block_size": "Odd neighborhood size (pixels) for the local mean. Larger = smoother threshold surface.",
+        "C": "Constant subtracted from the local mean before comparison; more positive → fewer white pixels.",
     },
-    "threshold_adaptive_gaussian": {
-        "block_size": "Odd window size for weighted local neighborhood.",
-        "C": "Constant subtracted from the weighted sum (fine-tunes boundary).",
+    "adaptive_gaussian": {
+        "block_size": "Odd window size for Gaussian-weighted local mean.",
+        "C": "Subtracted from the weighted sum; tunes how aggressive the binarization is.",
     },
+    "solarize": {
+        "threshold": "Intensity threshold: values below stay as-is; at/above are reflected as 255−I (per channel LUT).",
+    },
+    "posterize": {
+        "levels": "Number of discrete intensity levels per channel (2–64); lower = more banding.",
+    },
+    "threshold_ext": {
+        "threshold": "Grayscale threshold for TRUNC or TOZERO modes.",
+        "mode": '"truncate" (THRESH_TRUNC) caps highs at T, or "tozero" (THRESH_TOZERO) zeros below T.',
+    },
+    # —— Color ——
     "to_grayscale": {},
     "color_hsv_roundtrip": {},
     "color_lab_roundtrip": {},
     "color_ycrcb_roundtrip": {},
     "channel_gains": {
-        "b": "Multiplier for the blue channel (BGR order).",
-        "g": "Multiplier for the green channel.",
-        "r": "Multiplier for the red channel.",
+        "b": "Multiply blue channel (BGR order). 1.0 = no change.",
+        "g": "Multiply green channel.",
+        "r": "Multiply red channel.",
     },
+    "extract_channel": {
+        "channel": "0=blue, 1=green, 2=red; single channel replicated to 3 BGR planes for display.",
+    },
+    "brightness_contrast": {
+        "contrast": "Linear gain α in out = clip(α·src + β); 1.0 = unity contrast.",
+        "brightness": "Additive offset β (−100 to 100) added after scaling.",
+    },
+    "color_threshold": {
+        "min_blue": "Lower bound for B channel (inclusive).",
+        "max_blue": "Upper bound for B channel (inclusive).",
+        "min_green": "Lower bound for G channel.",
+        "max_green": "Upper bound for G channel.",
+        "min_red": "Lower bound for R channel.",
+        "max_red": "Upper bound for R channel.",
+    },
+    # —— Linear ——
     "gaussian_blur": {
-        "ksize": "Odd kernel width/height in pixels; larger = stronger low-pass blur.",
-        "sigma": "Gaussian standard deviation; 0 means derive from ksize.",
+        "ksize": "Odd aperture size (pixels). Larger = stronger blur.",
+        "sigma": "Gaussian σ; 0 lets OpenCV derive σ from ksize.",
     },
-    "box_blur": {
-        "ksize": "Odd kernel size; normalized averaging over a k×k square.",
-    },
+    "box_blur": {"ksize": "Odd kernel; each output pixel is the mean of a k×k neighborhood."},
     "median_blur": {
-        "ksize": (
-            "Odd aperture size; each pixel becomes neighborhood median (good for salt-and-pepper)."
-        ),
+        "ksize": "Odd aperture; output is the median of the neighborhood (good for salt-and-pepper).",
     },
     "bilateral_filter": {
-        "d": "Diameter of pixel neighborhood; larger = stronger edge-aware smoothing.",
-        "sigma_color": "Filter sigma in color space; larger = more mixing of nearby colors.",
-        "sigma_space": "Filter sigma in coordinate space; larger = influence of farther pixels.",
+        "d": "Pixel neighborhood diameter; larger = stronger smoothing (slower).",
+        "sigma_color": "How far colors are mixed in color space (larger = more mixing).",
+        "sigma_space": "How far pixels influence each other spatially.",
     },
     "unsharp_mask": {
-        "sigma": "Gaussian blur sigma used to build the low-frequency component.",
-        "amount": "Strength of sharpening (weight on high-frequency detail added back).",
+        "sigma": "Gaussian σ for the blurred low-frequency layer.",
+        "amount": "Sharpening strength: adds amount × (original − blur) to the image.",
     },
+    # —— Edges ——
     "sobel_magnitude": {
-        "ksize": "Derivative aperture: 1, 3, 5, or 7.",
+        "ksize": "Sobel aperture: 1, 3, 5, or 7 (odd).",
     },
     "scharr_magnitude": {},
     "laplacian": {
-        "ksize": "Second-derivative aperture size (odd, typically 3).",
+        "ksize": "Aperture for discrete Laplacian (odd); often 3.",
     },
     "canny": {
-        "threshold1": "First hysteresis threshold (lower of the two).",
-        "threshold2": "Second hysteresis threshold (edges stronger than this are strong edges).",
+        "threshold1": "Lower hysteresis threshold; weak edges above this can attach to strong edges.",
+        "threshold2": "Upper threshold; strong edges must exceed this.",
+    },
+    "prewitt": {},
+    "roberts": {},
+    "directional_gradient": {
+        "axis": '"x" for vertical edges (dx), "y" for horizontal edges (dy), via Sobel.',
+        "ksize": "Sobel aperture (odd, 1–7).",
     },
     "log": {
-        "sigma": "Gaussian scale σ before Laplacian; larger smooths more before 2nd derivative.",
-        "laplacian_ksize": "Aperture for discrete Laplacian after Gaussian blur (odd, often 3).",
+        "sigma": "Gaussian blur σ before Laplacian; larger = blob/edge response at coarser scale.",
+        "laplacian_ksize": "Discrete Laplacian kernel size (odd); typically 3.",
     },
     "dog": {
-        "sigma1": "Smaller Gaussian σ (narrower blur).",
-        "sigma2": "Larger Gaussian σ (wider blur); must be greater than sigma1.",
+        "sigma1": "Narrower Gaussian (smaller σ).",
+        "sigma2": "Wider Gaussian; must be > sigma1; difference emphasizes mid-frequency detail.",
     },
+    # —— Texture ——
     "lbp": {},
     "glcm_contrast": {
-        "patch_size": "Odd window for local GLCM contrast (horizontal pairs); capped to image size.",
-        "levels": "Gray levels after quantization for the co-occurrence histogram (8–64).",
+        "patch_size": "Odd window used for each local GLCM; automatically limited to image size.",
+        "levels": "Quantization levels for co-occurrence (8–64); lower = faster, coarser texture stats.",
     },
     "gabor": {
-        "ksize": "Odd Gabor kernel size in pixels.",
-        "sigma": "Gaussian envelope standard deviation.",
-        "theta_deg": "Filter orientation in degrees (converted to radians for the kernel).",
-        "lambda": "Sinusoid wavelength along the oriented axis (OpenCV λ parameter).",
-        "gamma": "Spatial aspect ratio of the Gaussian envelope (ellipticity).",
-        "psi_deg": "Phase offset of the sinusoid in degrees.",
+        "ksize": "Gabor kernel size (odd, pixels).",
+        "sigma": "Gaussian envelope standard deviation in the filter plane.",
+        "theta_deg": "Orientation of the normal to parallel stripes (degrees → radians in OpenCV).",
+        "lambda": "Wavelength of the sinusoidal factor (OpenCV λ).",
+        "gamma": "Spatial aspect ratio of the Gaussian (ellipticity).",
+        "psi_deg": "Phase offset of the cosine factor inside the envelope.",
     },
+    # —— Morphology ——
     "morph_erode": {
-        "ksize": "Odd structuring element size (pixels).",
-        "kernel_shape": "rect (default), ellipse, or cross.",
+        "ksize": "Odd size of the structuring element (pixels).",
+        "kernel_shape": '"rect", "ellipse", or "cross".',
     },
     "morph_dilate": {
-        "ksize": "Odd structuring element size (pixels).",
-        "kernel_shape": "rect, ellipse, or cross.",
+        "ksize": "Odd structuring element size.",
+        "kernel_shape": '"rect", "ellipse", or "cross".',
     },
     "morph_open": {
-        "ksize": "Odd structuring element size (pixels).",
-        "kernel_shape": "rect, ellipse, or cross.",
+        "ksize": "Odd structuring element size.",
+        "kernel_shape": "Shape of the structuring element.",
     },
     "morph_close": {
-        "ksize": "Odd structuring element size (pixels).",
-        "kernel_shape": "rect, ellipse, or cross.",
+        "ksize": "Odd structuring element size.",
+        "kernel_shape": "Shape of the structuring element.",
     },
     "morph_gradient": {
-        "ksize": "Odd structuring element size (pixels).",
-        "kernel_shape": "rect, ellipse, or cross.",
+        "ksize": "Odd structuring element size.",
+        "kernel_shape": "Shape of the structuring element.",
     },
     "morph_tophat": {
-        "ksize": "Odd structuring element size (pixels).",
-        "kernel_shape": "rect, ellipse, or cross.",
+        "ksize": "Odd structuring element; sets scale of bright details extracted.",
+        "kernel_shape": "Structuring element shape.",
     },
     "morph_blackhat": {
-        "ksize": "Odd structuring element size (pixels).",
-        "kernel_shape": "rect, ellipse, or cross.",
+        "ksize": "Odd structuring element; sets scale of dark details extracted.",
+        "kernel_shape": "Structuring element shape.",
+    },
+    # —— Geometric ——
+    "flip": {
+        "mode": '"horizontal" (lr), "vertical" (ud), or "both".',
+    },
+    "translate": {
+        "tx": "Shift in pixels along x (positive = right). Clamped to image width.",
+        "ty": "Shift in pixels along y (positive = down). Clamped to image height.",
+    },
+    "shear": {
+        "shear_x": "Horizontal shear coefficient in the affine matrix (see warpAffine).",
+        "shear_y": "Vertical shear coefficient.",
     },
     "resize": {
-        "mode": 'Either "scale" (relative) or "absolute" (explicit width/height).',
-        "scale": "Scale factor relative to current size (mode=scale).",
-        "width": "Target width in pixels (mode=absolute).",
-        "height": "Target height in pixels (mode=absolute).",
+        "mode": '"scale" uses relative factor, "absolute" uses width/height in pixels.',
+        "scale": "Isotropic scale factor when mode=scale (e.g. 0.5 = half size).",
+        "width": "Target width when mode=absolute.",
+        "height": "Target height when mode=absolute.",
     },
     "rotate": {
-        "angle_deg": "Counter-clockwise rotation in degrees about image center.",
-        "scale": "Isotropic scale applied with the rotation.",
+        "angle_deg": "Counter-clockwise rotation about image center.",
+        "scale": "Isotropic scale applied with the rotation matrix.",
     },
     "pyramid_down": {},
     "pyramid_up": {},
     "crop_fraction": {
-        "x0": "Left edge of crop as fraction of width [0,1].",
-        "y0": "Top edge of crop as fraction of height [0,1].",
-        "x1": "Right edge of crop as fraction of width [0,1].",
-        "y1": "Bottom edge of crop as fraction of height [0,1].",
+        "x0": "Left crop edge as fraction of width [0,1].",
+        "y0": "Top crop edge as fraction of height [0,1].",
+        "x1": "Right crop edge as fraction of width (must be > x0).",
+        "y1": "Bottom crop edge as fraction of height (must be > y0).",
     },
+    # —— Noise / denoise ——
     "add_gaussian_noise": {
-        "sigma": "Standard deviation of additive Gaussian noise (per channel, 0 = none).",
+        "sigma": "Std dev of Gaussian noise per channel (0 = skip).",
     },
     "add_salt_pepper": {
-        "ratio": "Fraction of pixels corrupted (half salt, half pepper).",
+        "ratio": "Fraction of pixels randomized (half salt, half pepper).",
     },
     "nl_means_gray": {
-        "h": "Filter strength; higher = more denoising (may blur detail).",
+        "h": "Filter strength for luminance; higher = more denoising.",
         "template_window_size": "Patch size for similarity (odd).",
-        "search_window_size": "Search region size for similar patches (odd).",
+        "search_window_size": "Neighborhood searched for similar patches (odd).",
     },
     "nl_means_color": {
-        "h": "Luminance filter strength.",
-        "h_color": "Color component strength for chrominance denoising.",
-        "template_window_size": "Patch size for similarity (odd).",
-        "search_window_size": "Search region size (odd).",
+        "h": "Luminance component filter strength.",
+        "h_color": "Color component strength for chrominance.",
+        "template_window_size": "Patch size (odd).",
+        "search_window_size": "Search window size (odd).",
     },
-    "dft_magnitude_spectrum": {},
-    "dft_phase_spectrum": {},
+    # —— Fourier (defaults also in spec param_help) ——
+    "dft_magnitude_spectrum": {
+        "spectrum_display": '"jet" false-color or "gray" grayscale spectrum.',
+    },
+    "dft_phase_spectrum": {
+        "spectrum_display": '"jet" or "gray" for phase visualization.',
+    },
     "frequency_gaussian_lowpass": {
-        "sigma_frequency": (
-            "Gaussian width in frequency bins; larger keeps more lows → stronger spatial blur."
-        ),
+        "sigma_frequency": "Gaussian width in frequency bins (centered on DC); larger = milder blur.",
     },
     "frequency_gaussian_highpass": {
-        "sigma_frequency": ("High-pass Gaussian width; smaller σ → more highs (sharper, noisier)."),
+        "sigma_frequency": "Controls high-pass width; smaller σ keeps more high frequencies (sharper, noisier).",
     },
+}
+
+# Longer Reference text when spec has no detail_doc (or empty). Multi-paragraph welcome.
+OP_DETAIL_DOC: dict[str, str] = {
+    "normalize_minmax": (
+        "Converts the image to grayscale, applies min–max normalization so the darkest pixel becomes "
+        "0 and the brightest 255, then expands back to three identical BGR channels. Use when you want "
+        "full dynamic range without changing color ratios (color is discarded)."
+    ),
+    "equalize_histogram": (
+        "Runs histogram equalization on the luminance (Y) channel in YCrCb while preserving chroma, "
+        "then converts back to BGR. Often improves global contrast on underexposed images; can amplify "
+        "noise in flat regions."
+    ),
+    "clahe": (
+        "Contrast Limited Adaptive Histogram Equalization on the L channel in LAB space. clip_limit caps "
+        "how much each tile can amplify contrast; tile_grid_size sets local neighborhood size. Good for "
+        "uneven lighting without blowing out small hot spots as much as global equalize."
+    ),
+    "gamma": (
+        "Applies a per-channel LUT: output ≈ (input/255)^γ × 255. Values below 1 brighten shadows; above "
+        "1 darken mid-tones. This is independent per BGR channel in the implementation."
+    ),
+    "invert": "Bitwise NOT on each 8-bit channel (photographic negative).",
+    "log_transform": (
+        "Compresses dynamic range with a log-like curve so dark regions gain more separation. Inverse "
+        "is available as inverse_log_transform for experimentation (not necessarily a perfect inverse "
+        "for all images)."
+    ),
+    "inverse_log_transform": "Approximately reverses the app’s log transform using an exponential LUT.",
+    "threshold_binary": (
+        "Single global threshold on grayscale: above thresh → white, below → black. Output is 3-channel "
+        "BGR with identical bands for compatibility with the rest of the pipeline."
+    ),
+    "threshold_otsu": "Otsu’s method chooses a threshold by minimizing intra-class variance on the gray histogram.",
+    "adaptive_mean": (
+        "Each pixel is compared to the mean of an odd block_size neighborhood, minus C. Handles uneven "
+        "illumination better than global threshold; block_size should be larger than the features you "
+        "want to segment."
+    ),
+    "adaptive_gaussian": (
+        "Like adaptive mean but weights neighbors with a Gaussian window. Often smoother boundaries than "
+        "plain mean when lighting gradients are present."
+    ),
+    "solarize": (
+        "Solarization: builds a LUT that inverts intensities at or above the threshold (film-style "
+        "sabattier effect). Lower threshold affects more of the image."
+    ),
+    "posterize": (
+        "Quantizes each channel to `levels` steps by flooring to the nearest step. Fewer levels produce "
+        "strong poster/banding art effects."
+    ),
+    "threshold_ext": (
+        "Uses OpenCV THRESH_TRUNC (cap at threshold) or THRESH_TOZERO (zero below threshold) on "
+        "grayscale, then expands to BGR. Mode is chosen with the `mode` parameter."
+    ),
+    "to_grayscale": "BGR to single-channel gray, then replicated to BGR for display.",
+    "color_hsv_roundtrip": "Sanity / color-space path: BGR→HSV→BGR without intentional edits.",
+    "color_lab_roundtrip": "BGR→LAB→BGR round-trip; small numerical differences are possible.",
+    "color_ycrcb_roundtrip": "BGR→YCrCb→BGR round-trip; useful before/after luma-only ops in other tools.",
+    "channel_gains": (
+        "Multiplies B, G, R by separate gains (order is BGR). Values above 1 clip at 255; use for simple "
+        "white balance or creative tinting."
+    ),
+    "extract_channel": (
+        "Selects one BGR plane (0=B, 1=G, 2=R), displays it as a gray image copied to all three channels "
+        "so the pipeline stays BGR."
+    ),
+    "brightness_contrast": (
+        "cv2.convertScaleAbs: out = saturate_round(α·src + β). contrast is α, brightness is β. Clipping "
+        "is per-channel."
+    ),
+    "color_threshold": (
+        "cv2.inRange keeps pixels whose B, G, R values all lie within the min/max boxes (inclusive). "
+        "Useful for crude color segmentation (e.g. green screen rough mask)."
+    ),
+    "gaussian_blur": (
+        "Separable Gaussian blur. sigma=0 means OpenCV derives σ from ksize. Reduces noise and detail; "
+        "larger ksize or σ = stronger low-pass."
+    ),
+    "box_blur": "Normalized box filter (mean); cheaper than Gaussian but stronger block artifacts.",
+    "median_blur": (
+        "Replaces each pixel with the median of an odd k×k window. Excellent for salt-and-pepper noise; "
+        "preserves edges better than linear blur for impulse noise."
+    ),
+    "bilateral_filter": (
+        "Edge-preserving smoothing: combines domain (distance) and range (color similarity) Gaussians. "
+        "Slower than Gaussian blur but keeps sharp boundaries."
+    ),
+    "unsharp_mask": (
+        "Classic sharpening: adds a multiple of (image − GaussianBlur(image)) to the image. amount "
+        "controls strength; sigma sets blur scale."
+    ),
+    "sobel_magnitude": (
+        "Sobel gradients Gx, Gy on grayscale, then magnitude sqrt(Gx²+Gy²), normalized for display as BGR. "
+        "ksize sets derivative aperture."
+    ),
+    "scharr_magnitude": "3×3 Scharr derivatives (more accurate than 3×3 Sobel for the same size), magnitude shown.",
+    "laplacian": (
+        "Second derivative on grayscale (sign discarded in display via magnitude in this app). Sensitive "
+        "to noise; often combine with Gaussian pre-blur elsewhere in the pipeline."
+    ),
+    "canny": (
+        "Canny edge detector: gradient magnitude, non-max suppression, hysteresis with two thresholds. "
+        "threshold2 should usually be higher than threshold1."
+    ),
+    "prewitt": "Prewitt operator magnitude (3×3 separable kernels), normalized for visualization.",
+    "roberts": "Roberts cross operator on 2×2 neighborhoods; fast coarse edges.",
+    "directional_gradient": (
+        "Sobel along x or y only; absolute response shown. Use axis=\"x\" or \"y\" and ksize for aperture."
+    ),
+    "log": (
+        "Laplacian of Gaussian: Gaussian blur at σ then Laplacian; magnitude shown. Responds to blobs "
+        "and edges at a scale set by σ."
+    ),
+    "dog": (
+        "Difference of Gaussians: |G(σ₂) − G(σ₁)| on luminance. Band-pass emphasis between two scales; "
+        "increase separation between σ₁ and σ₂ for coarser features."
+    ),
+    "lbp": (
+        "Classic 8-neighbor LBP: compare each neighbor to the center, pack 8 bits clockwise from top-left. "
+        "Output is a texture label map (0–255) expanded to BGR."
+    ),
+    "glcm_contrast": (
+        "For a grid of overlapping windows, computes GLCM contrast from horizontal pairs on quantized "
+        "gray levels, then resizes the contrast map to full image size. Higher values indicate stronger "
+        "local intensity contrast / texture."
+    ),
+    "gabor": (
+        "Real Gabor filter: Gaussian envelope × cosine; orientation theta_deg, wavelength lambda, aspect "
+        "gamma, phase psi_deg. Response magnitude is normalized for display. Tune theta to align with "
+        "expected edge direction."
+    ),
+    "morph_erode": "Morphological erosion: local minimum under the structuring element (shrinks bright regions).",
+    "morph_dilate": "Morphological dilation: local maximum (expands bright regions).",
+    "morph_open": "Opening = erode then dilate; removes small bright specks smaller than the kernel.",
+    "morph_close": "Closing = dilate then erode; fills small dark holes smaller than the kernel.",
+    "morph_gradient": "Morphological gradient = dilate − erode (edge strength of the foreground at scale ksize).",
+    "morph_tophat": "Top-hat = image − opening; highlights small bright details relative to the background.",
+    "morph_blackhat": "Black-hat = closing − image; highlights small dark details.",
+    "flip": "cv2.flip with code 1 (horizontal), 0 (vertical), or -1 (both).",
+    "translate": "Integer pixel shift via affine warp; border not padded beyond image size (shift wraps within same canvas).",
+    "shear": "Affine shear with coefficients shear_x, shear_y on normalized coordinates.",
+    "resize": (
+        "Either relative scale (same aspect) or absolute width×height. Uses INTER_AREA interpolation "
+        "suited for downscaling."
+    ),
+    "rotate": (
+        "Rotation about image center with optional uniform scale; border uses reflect padding. Angle is "
+        "degrees counter-clockwise."
+    ),
+    "pyramid_down": "One level of Gaussian pyramid reduction (~half size).",
+    "pyramid_up": "One level of pyramid expansion (~double size).",
+    "crop_fraction": (
+        "Crops using normalized [0,1] rectangle edges; invalid boxes (x1≤x0 or y1≤y0) return the original image."
+    ),
+    "add_gaussian_noise": "Adds Gaussian noise independently per BGR channel.",
+    "add_salt_pepper": "Randomly sets a fraction of pixels to 0 or 255.",
+    "nl_means_gray": (
+        "Non-local means denoising on grayscale conversion. h controls denoising strength; larger windows "
+        "find more matches but cost more time."
+    ),
+    "nl_means_color": "OpenCV fastNlMeansDenoisingColored with separate h and h_color.",
 }
