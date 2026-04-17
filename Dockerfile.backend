@@ -16,10 +16,7 @@ RUN apt-get update \
 COPY backend/requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Optional: cache YOLO26n weights in the image (~5MB) so the first request does not download them.
-# Requires network at build time; comment out if builds are offline.
-RUN python -c "from ultralytics import YOLO; YOLO('yolo26n.pt')"
-
+COPY backend/yolo26n.onnx ./yolo26n.onnx
 COPY backend/app ./app
 
 EXPOSE 8000

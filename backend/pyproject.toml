@@ -12,7 +12,7 @@ dependencies = [
     "numpy>=1.26.0,<3",
     "pydantic>=2.5.0,<3",
     "PyJWT>=2.8.0,<3",
-    "ultralytics>=8.3.0,<9",
+    "onnxruntime>=1.17,<2",
 ]
 
 [build-system]

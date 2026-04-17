@@ -30,6 +30,7 @@ RUN apt-get update \
 COPY backend/requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
+COPY backend/yolo26n.onnx ./yolo26n.onnx
 COPY backend/app ./app
 
 COPY --from=frontend /src/frontend/dist ./static

@@ -69,7 +69,15 @@ Dependencies for the Python service come from [`backend/pyproject.toml`](backend
 | `MAX_IMAGE_BYTES` | Optional | Default 8 MiB. |
 | `MAX_IMAGE_DIMENSION` | Optional | Default 4096 px. |
 
-**Object detection (YOLO26):** `yolo26_detect` uses **Ultralytics** and **PyTorch** — large bundle and RAM. On Vercel, ensure the backend service has enough **memory** in `vercel.json` (already set to 3008 MB); if deploys fail, use Docker + a dedicated host (below). Ultralytics is **AGPL-3.0** — confirm licensing. For Docker images, you can bake `yolo26n.pt` into the image (see [`Dockerfile.backend`](Dockerfile.backend)).
+**Object detection (YOLO26):** `yolo26_detect` runs on **ONNX Runtime** (CPU) against the committed [`backend/yolo26n.onnx`](backend/yolo26n.onnx) — **no PyTorch / Ultralytics on the server**, which is what keeps the Python function under Vercel's bundle size limit. Ultralytics weights are **AGPL-3.0** — confirm licensing for your use case.
+
+To refresh the ONNX model (only needed if you change the underlying weights), run once locally where `ultralytics` is installed:
+
+```bash
+cd backend
+python -c "from ultralytics import YOLO; YOLO('yolo26n.pt').export(format='onnx', imgsz=640, opset=12, simplify=True)"
+git add yolo26n.onnx && git commit -m "chore: refresh yolo26n.onnx"
+```
 
 Copy [`frontend/.env.example`](frontend/.env.example) or [`kernellab.env.example`](kernellab.env.example) as a checklist. Run `.\scripts\sync-kernellab-env.ps1` locally to split env into `frontend/.env` and `backend/.env`.
 
