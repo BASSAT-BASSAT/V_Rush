@@ -28,6 +28,7 @@ def test_get_ops() -> None:
     ids = {o["id"] for o in data["ops"]}
     assert "gaussian_blur" in ids
     assert "dft_magnitude_spectrum" in ids
+    assert "yolo26_detect" in ids
 
 
 def test_post_process_gaussian(png_bytes_simple: bytes) -> None:
@@ -43,6 +44,7 @@ def test_post_process_gaussian(png_bytes_simple: bytes) -> None:
     dec = cv2.imdecode(np.frombuffer(raw, dtype=np.uint8), cv2.IMREAD_COLOR)
     assert dec is not None
     assert body["width"] == dec.shape[1]
+    assert isinstance(body.get("detections"), list)
 
 
 def test_post_process_invalid_pipeline(png_bytes_simple: bytes) -> None:

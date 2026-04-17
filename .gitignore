@@ -26,3 +26,7 @@ supabase/.temp/
 .vscode/
 .vercel
 .env*.local
+.cursor/
+
+# Ultralytics / YOLO weights (downloaded at runtime or in Docker build)
+backend/*.pt

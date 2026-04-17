@@ -1,6 +1,7 @@
 /** Display names for backend `category` strings (GET /api/ops). */
 
 export const CATEGORY_LABELS: Record<string, string> = {
+  detection: 'Detection',
   geometric: 'Geometric',
   color: 'Color',
   intensity: 'Intensity',

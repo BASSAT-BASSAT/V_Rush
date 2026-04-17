@@ -6,3 +6,5 @@ opencv-python-headless>=4.9.0,<5
 numpy>=1.26.0,<3
 pydantic>=2.5.0,<3
 PyJWT>=2.8.0,<3
+# YOLO26 (COCO detection); pulls PyTorch — larger image and RAM vs OpenCV-only.
+ultralytics>=8.3.0,<9

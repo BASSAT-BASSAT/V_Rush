@@ -218,6 +218,13 @@ OP_PARAM_HELP: dict[str, dict[str, str]] = {
     "frequency_gaussian_highpass": {
         "sigma_frequency": "Controls high-pass width; smaller σ keeps more high frequencies (sharper, noisier).",
     },
+    # —— Detection (YOLO26) ——
+    "yolo26_detect": {
+        "conf": "Minimum confidence in [0, 1]. Higher = fewer boxes.",
+        "classes": 'Optional COCO filter, e.g. ["person"] or [0]; omit or [] for all classes.',
+        "max_det": "Upper bound on how many boxes are returned.",
+        "draw": "Draw boxes and labels on the pipeline image for the preview.",
+    },
 }
 
 # Longer Reference text when spec has no detail_doc (or empty). Multi-paragraph welcome.

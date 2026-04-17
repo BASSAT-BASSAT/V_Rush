@@ -16,7 +16,7 @@ from app.cv_ops.executor import execute_pipeline
 from app.cv_ops.registry import list_ops_public
 from app.cv_ops.validate import validate_pipeline
 from app.processing.io_image import ImageDecodeError, decode_image_bytes
-from app.schemas import OpInfo, OpsListResponse, ProcessResponse
+from app.schemas import DetectionItem, OpInfo, OpsListResponse, ProcessResponse
 
 # Routes are defined without ``/api`` in the path; ``main`` mounts this router twice:
 # ``prefix="/api"`` → ``/api/ops`` (browser, local dev behind proxy)
@@ -90,6 +90,8 @@ async def process_image(
 
     applied = [{"op": oid, "params": dict(params)} for oid, params in validated.steps]
 
+    det_models = [DetectionItem(**d) for d in result.detections]
+
     return ProcessResponse(
         image_base64=b64,
         mime="image/png",
@@ -98,4 +100,5 @@ async def process_image(
         height=h,
         pipeline_applied=applied,
         last_output_kind=result.last_output_kind,
+        detections=det_models,
     )

@@ -29,7 +29,9 @@ export function PipelineStack({
 
   return (
     <div className="pipeline-stack">
-      {steps.length === 0 && <p className="panel-hint">Add operations from the left panel, then tune JSON here.</p>}
+      {steps.length === 0 && (
+        <p className="panel-hint">Use the <strong>Add ops</strong> tab to pick steps, then reorder and edit JSON here.</p>
+      )}
       <ul className="pipeline-stack__list">
         {steps.map((s, idx) => {
           const meta = opsById.get(s.op)

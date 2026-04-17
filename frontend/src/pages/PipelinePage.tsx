@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useOutletContext } from 'react-router-dom'
+import { Link, useOutletContext } from 'react-router-dom'
 import { processImage } from '../api/cv'
+import { bboxToCropFraction } from '../lib/bboxCrop'
 import { copyTextToClipboard } from '../lib/clipboard'
 import { pipelineToPython } from '../lib/pipelineToPython'
 import { recordCodeExport } from '../lib/recordCodeExport'
@@ -8,12 +9,14 @@ import { BeforeAfter } from '../components/BeforeAfter'
 import { FileDrop } from '../components/FileDrop'
 import { OpPalette } from '../components/OpPalette'
 import { PipelineStack } from '../components/PipelineStack'
-import type { OpInfo, PipelineStepUI, ProcessResponse } from '../types/cv'
+import type { DetectionItem, OpInfo, PipelineStepUI, ProcessResponse } from '../types/cv'
 import type { AppLayoutOutlet } from '../types/layout'
 
 function newKey() {
   return crypto.randomUUID()
 }
+
+type WorkspaceTab = 'ops' | 'pipeline'
 
 export function PipelinePage() {
   const { ops, opsError, accessToken } = useOutletContext<AppLayoutOutlet>()
@@ -27,8 +30,11 @@ export function PipelinePage() {
   const [result, setResult] = useState<ProcessResponse | null>(null)
   const [afterSrc, setAfterSrc] = useState<string | null>(null)
   const [copyNotice, setCopyNotice] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null)
+  const [workspaceTab, setWorkspaceTab] = useState<WorkspaceTab>('ops')
 
   const opsById = useMemo(() => new Map(ops.map((o) => [o.id, o])), [ops])
+
+  const hasYoloStep = useMemo(() => steps.some((s) => s.op === 'yolo26_detect'), [steps])
 
   useEffect(() => {
     if (!file) {
@@ -177,6 +183,26 @@ export function PipelinePage() {
     }
   }, [parseSteps])
 
+  const addCropFromDetection = useCallback(
+    (d: DetectionItem) => {
+      const crop = opsById.get('crop_fraction')
+      if (!crop || !result) return
+      const fr = bboxToCropFraction(d.bbox, result.width, result.height)
+      setSteps((prev) => [
+        ...prev,
+        {
+          key: newKey(),
+          op: 'crop_fraction',
+          paramsJson: JSON.stringify({ ...crop.default_params, ...fr }, null, 2),
+        },
+      ])
+      setWorkspaceTab('pipeline')
+    },
+    [opsById, result],
+  )
+
+  const detections = result?.detections ?? []
+
   return (
     <>
       {opsError && <div className="banner banner--error">{opsError}</div>}
@@ -188,8 +214,10 @@ export function PipelinePage() {
               <span className="dock-panel__dot dock-panel__dot--cyan" />
               Source
             </h2>
+            <p className="panel-hint panel-hint--tight">
+              Upload an image, build steps in the right panel, then <strong>Run pipeline</strong> in the preview.
+            </p>
             <FileDrop onFile={setFile} disabled={loadingRun} />
-            {ops.length > 0 && <OpPalette ops={ops} onAdd={addOp} disabled={loadingRun || !file} />}
           </section>
         </aside>
 
@@ -214,64 +242,123 @@ export function PipelinePage() {
                 </ul>
               </div>
             )}
+            {detections.length > 0 && (
+              <div className="detections-panel">
+                <h3 className="detections-panel__title">Detections (last run)</h3>
+                <p className="detections-panel__hint">
+                  Boxes are in pixel coordinates for the image returned above (after your pipeline).{' '}
+                  <Link to="/reference">Reference</Link> lists COCO class names.
+                </p>
+                <ul className="detections-panel__list">
+                  {detections.map((d, i) => (
+                    <li key={`${d.label}-${i}-${d.bbox.join(',')}`} className="detections-panel__row">
+                      <span className="detections-panel__label">
+                        {d.label}{' '}
+                        <span className="detections-panel__conf">{(d.confidence * 100).toFixed(1)}%</span>
+                      </span>
+                      <button
+                        type="button"
+                        className="btn btn--ghost btn--sm"
+                        onClick={() => addCropFromDetection(d)}
+                        title="Append a crop_fraction step using this box"
+                      >
+                        Use bbox for crop
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
             {copyNotice && (
               <div className={`banner ${copyNotice.kind === 'ok' ? 'banner--ok' : 'banner--error'}`} role="status">
                 {copyNotice.text}
               </div>
             )}
-            <div className="toolbar">
+            <div className="toolbar toolbar--primary">
               <button type="button" className="btn btn--primary" disabled={!file || loadingRun} onClick={() => void run()}>
                 {loadingRun ? 'Running…' : 'Run pipeline'}
               </button>
               <button type="button" className="btn" disabled={steps.length === 0} onClick={() => setSteps([])}>
                 Clear
               </button>
-              <button type="button" className="btn" disabled={steps.length === 0} onClick={() => void copyPipelineJson()}>
-                Copy JSON
-              </button>
-              <button
-                type="button"
-                className="btn"
-                disabled={steps.length === 0}
-                onClick={() => void copyPythonExport()}
-                title="Copy OpenCV + NumPy script (img → out). Falls back if clipboard is blocked."
-              >
-                Copy Python
-              </button>
-              <button
-                type="button"
-                className="btn btn--ghost"
-                disabled={steps.length === 0}
-                onClick={downloadPythonFile}
-                title="Always works — saves v-rush-pipeline.py"
-              >
-                Download .py
-              </button>
               {result && (
                 <a className="btn btn--ghost" href={afterSrc ?? '#'} download="v-rush-output.png">
-                  Download
+                  Download image
                 </a>
               )}
+              <details className="export-menu">
+                <summary className="export-menu__summary btn btn--ghost">Export pipeline</summary>
+                <div className="export-menu__panel">
+                  <button
+                    type="button"
+                    className="export-menu__item"
+                    disabled={steps.length === 0}
+                    onClick={() => void copyPipelineJson()}
+                  >
+                    Copy JSON
+                  </button>
+                  <button
+                    type="button"
+                    className="export-menu__item"
+                    disabled={steps.length === 0}
+                    onClick={() => void copyPythonExport()}
+                    title="OpenCV + NumPy; YOLO steps need ultralytics manually."
+                  >
+                    Copy Python
+                  </button>
+                  <button type="button" className="export-menu__item" disabled={steps.length === 0} onClick={downloadPythonFile}>
+                    Download .py
+                  </button>
+                </div>
+              </details>
             </div>
           </section>
         </main>
 
         <aside className="app__col app__col--side app__col--pipeline">
-          <section className="dock-panel">
-            <h2 className="dock-panel__title">
-              <span className="dock-panel__dot dock-panel__dot--amber" />
-              Pipeline
-            </h2>
-            <PipelineStack
-              steps={steps}
-              opsById={opsById}
-              onChangeParams={(key, json) => setSteps((prev) => prev.map((s) => (s.key === key ? { ...s, paramsJson: json } : s)))}
-              onRemove={(key) => setSteps((prev) => prev.filter((s) => s.key !== key))}
-              onMove={onMove}
-              onDragStart={setDragKey}
-              onDropOn={onDropOn}
-              dragKey={dragKey}
-            />
+          <section className="dock-panel dock-panel--workspace">
+            <div className="workspace-tabs" aria-label="Pipeline workspace">
+              <button
+                type="button"
+                className={`workspace-tabs__btn${workspaceTab === 'ops' ? ' workspace-tabs__btn--on' : ''}`}
+                aria-pressed={workspaceTab === 'ops'}
+                onClick={() => setWorkspaceTab('ops')}
+              >
+                Add ops
+              </button>
+              <button
+                type="button"
+                className={`workspace-tabs__btn${workspaceTab === 'pipeline' ? ' workspace-tabs__btn--on' : ''}`}
+                aria-pressed={workspaceTab === 'pipeline'}
+                onClick={() => setWorkspaceTab('pipeline')}
+              >
+                Pipeline
+              </button>
+            </div>
+            {workspaceTab === 'ops' && ops.length > 0 && (
+              <OpPalette ops={ops} onAdd={addOp} disabled={loadingRun || !file} embedded />
+            )}
+            {workspaceTab === 'ops' && ops.length === 0 && <p className="panel-hint">Loading operations…</p>}
+            {workspaceTab === 'pipeline' && (
+              <>
+                {hasYoloStep && (
+                  <p className="panel-hint panel-hint--tight">
+                    <strong>YOLO</strong> runs on the image <em>after</em> the steps above it. Put preprocessing first to detect on
+                    the processed image.
+                  </p>
+                )}
+                <PipelineStack
+                  steps={steps}
+                  opsById={opsById}
+                  onChangeParams={(key, json) => setSteps((prev) => prev.map((s) => (s.key === key ? { ...s, paramsJson: json } : s)))}
+                  onRemove={(key) => setSteps((prev) => prev.filter((s) => s.key !== key))}
+                  onMove={onMove}
+                  onDragStart={setDragKey}
+                  onDropOn={onDropOn}
+                  dragKey={dragKey}
+                />
+              </>
+            )}
           </section>
         </aside>
       </div>

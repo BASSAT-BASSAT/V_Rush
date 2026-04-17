@@ -11,6 +11,13 @@ export interface OpInfo {
   detail_doc: string
 }
 
+export interface DetectionItem {
+  label: string
+  confidence: number
+  /** [x1, y1, x2, y2] pixels — same coordinate space as the returned image (after pipeline / YOLO). */
+  bbox: [number, number, number, number]
+}
+
 export interface ProcessResponse {
   image_base64: string
   mime: string
@@ -19,6 +26,8 @@ export interface ProcessResponse {
   height: number
   pipeline_applied: { op: string; params: Record<string, unknown> }[]
   last_output_kind: string
+  /** Present when the backend returns detection results (e.g. after yolo26_detect). */
+  detections?: DetectionItem[]
 }
 
 export interface PipelineStepUI {

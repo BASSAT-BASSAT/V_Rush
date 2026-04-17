@@ -573,6 +573,28 @@ _img = cv2.magnitude(_img[:, :, 0], _img[:, :, 1])
 _img = cv2.normalize(_img[:_oh, :_ow], None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
 out = cv2.cvtColor(_img, cv2.COLOR_GRAY2BGR)`
     }
+    case 'yolo26_detect': {
+      const conf = flt(p.conf, 0.25)
+      const maxDet = intg(p.max_det, 100)
+      const draw = p.draw !== false
+      const drawPy = draw ? 'True' : 'False'
+      return `${hdr}
+# --- YOLO26 (Ultralytics) — not runnable with OpenCV alone.
+# Install: pip install ultralytics
+# Weights: yolo26n.pt (downloaded automatically on first YOLO("yolo26n.pt") if missing).
+# AGPL-3.0 applies to Ultralytics; confirm licensing for your use case.
+#
+# from ultralytics import YOLO
+# _yolo = YOLO("yolo26n.pt")
+# _kwargs = {"conf": ${pyVal(conf)}, "max_det": ${pyVal(maxDet)}, "verbose": False}
+# _classes = ${pyVal(p.classes ?? [])}
+# if _classes:
+#     _kwargs["classes"] = _classes
+# _r = _yolo(out, **_kwargs)[0]
+# out = _r.plot() if ${drawPy} else out
+# # Detections: iterate _r.boxes for label, conf, xyxy when draw is False
+raise NotImplementedError("Uncomment the block above and add ultralytics + yolo26n.pt to run YOLO26 offline.")`
+    }
     default:
       return `${hdr}
 # Unsupported or unknown op id in exporter: ${JSON.stringify(op)}

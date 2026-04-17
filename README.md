@@ -46,6 +46,8 @@ Use [`Dockerfile.backend`](Dockerfile.backend) or run uvicorn locally.
 | `MAX_IMAGE_BYTES` | Optional | Default 8 MiB. |
 | `MAX_IMAGE_DIMENSION` | Optional | Default 4096 px. |
 
+**Object detection (YOLO26):** The API includes Ultralytics YOLO26n (`yolo26_detect` in the pipeline). That pulls **PyTorch** and increases **Docker image size and RAM** versus OpenCV-only. Detection runs on the **API host** (not the Vercel static frontend). For faster cold starts, bake `yolo26n.pt` into the image (see comments in [`Dockerfile.backend`](Dockerfile.backend)). Ultralytics is **AGPL-3.0**—confirm licensing for your product.
+
 Example (Render / Railway): connect the repo, Dockerfile path `Dockerfile.backend`, set the env vars above.
 
 ## 3. Frontend (Vercel)

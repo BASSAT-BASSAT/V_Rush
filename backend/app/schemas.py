@@ -27,6 +27,17 @@ class OpsListResponse(BaseModel):
     ops: list[OpInfo]
 
 
+class DetectionItem(BaseModel):
+    label: str
+    confidence: float
+    bbox: list[float] = Field(
+        ...,
+        description="Axis-aligned box [x1, y1, x2, y2] in pixels for the image YOLO saw.",
+        min_length=4,
+        max_length=4,
+    )
+
+
 class ProcessResponse(BaseModel):
     image_base64: str
     mime: str = "image/png"
@@ -35,3 +46,4 @@ class ProcessResponse(BaseModel):
     height: int
     pipeline_applied: list[dict[str, Any]]
     last_output_kind: str = "spatial"
+    detections: list[DetectionItem] = Field(default_factory=list)
