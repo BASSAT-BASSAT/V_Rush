@@ -80,7 +80,16 @@ async def process_image(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
 
-    result = execute_pipeline(decoded.bgr, validated)
+    try:
+        result = execute_pipeline(decoded.bgr, validated)
+    except RuntimeError as e:
+        detail = str(e)
+        if "ultralytics" in detail.lower():
+            raise HTTPException(
+                status_code=503,
+                detail=detail,
+            ) from e
+        raise
     h, w = result.image_bgr.shape[:2]
 
     ok, buf = cv2.imencode(".png", result.image_bgr)

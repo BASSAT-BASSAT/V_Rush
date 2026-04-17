@@ -7,6 +7,8 @@ from typing import Any
 import cv2
 import numpy as np
 
+from app.cv_ops.coco80 import COCO_NAME_TO_ID, COCO80_NAMES
+
 # Lazy singleton — avoid import-time torch/ultralytics cost for tests that mock
 _model = None
 
@@ -14,7 +16,14 @@ _model = None
 def _get_model():
     global _model
     if _model is None:
-        from ultralytics import YOLO
+        try:
+            from ultralytics import YOLO
+        except ImportError as e:
+            raise RuntimeError(
+                "The ultralytics package is not installed on this server. "
+                "Install backend dependencies (e.g. pip install -e backend or uv sync in backend/) "
+                "including ultralytics and PyTorch."
+            ) from e
 
         _model = YOLO("yolo26n.pt")
     return _model
@@ -59,19 +68,18 @@ def validate_yolo26_params(p: dict) -> dict:
         if len(raw_classes) == 0:
             classes = None
         else:
-            model = _get_model()
-            name_to_id = {v.lower(): k for k, v in model.names.items()}
+            # Resolve names/ids without loading YOLO (no ultralytics import).
             out_ids: set[int] = set()
             for item in raw_classes:
                 if isinstance(item, int):
-                    if item not in model.names:
-                        raise ValueError(f"Invalid class id {item}")
+                    if item < 0 or item >= len(COCO80_NAMES):
+                        raise ValueError(f"Invalid class id {item} (use 0–{len(COCO80_NAMES) - 1})")
                     out_ids.add(item)
                 elif isinstance(item, str):
                     key = item.strip().lower()
-                    if key not in name_to_id:
+                    if key not in COCO_NAME_TO_ID:
                         raise ValueError(f"Unknown COCO class name: {item!r}")
-                    out_ids.add(name_to_id[key])
+                    out_ids.add(COCO_NAME_TO_ID[key])
                 else:
                     raise ValueError("Each class must be an int id or string name")
             classes = sorted(out_ids)
