@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from app.cv_ops.color_ops import COLOR_SPECS
+from app.cv_ops.color import COLOR_SPECS
 from app.cv_ops.denoise import DENOISE_SPECS
 from app.cv_ops.dog import DOG_SPECS
 from app.cv_ops.edges import EDGES_SPECS

@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { categoryLabel } from '../cv/categoryLabels'
 import type { OpInfo } from '../types/cv'
 
 /** Sensible order for CV pipelines (matches common processing flow). */
@@ -81,7 +82,7 @@ export function OpPalette({ ops, onAdd, disabled }: Props) {
         >
           {categories.map((cat) => (
             <option key={cat} value={cat}>
-              {cat} ({grouped.get(cat)?.length ?? 0})
+              {categoryLabel(cat)} ({grouped.get(cat)?.length ?? 0})
             </option>
           ))}
         </select>
@@ -92,7 +93,11 @@ export function OpPalette({ ops, onAdd, disabled }: Props) {
         <span className="op-palette__methods-count">{currentOps.length}</span>
       </div>
 
-      <div className="op-palette__methods" role="listbox" aria-label={`${topic} operations`}>
+      <div
+        className="op-palette__methods"
+        role="listbox"
+        aria-label={`${categoryLabel(topic)} operations`}
+      >
         {currentOps.length === 0 && <p className="op-palette__empty">No operations in this topic.</p>}
         {currentOps.map((o) => (
           <button

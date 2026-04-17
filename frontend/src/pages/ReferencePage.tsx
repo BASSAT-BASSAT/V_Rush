@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { useOutletContext } from 'react-router-dom'
+import { categoryLabel } from '../cv/categoryLabels'
 import type { OpInfo } from '../types/cv'
 import type { AppLayoutOutlet } from '../types/layout'
 
@@ -32,7 +33,7 @@ export function ReferencePage() {
       <div className="ref-page__sections">
         {grouped.map(([cat, list]) => (
           <section key={cat} className="ref-page__cat">
-            <h3 className="ref-page__cat-title">{cat}</h3>
+            <h3 className="ref-page__cat-title">{categoryLabel(cat)}</h3>
             <ul className="ref-page__cards">
               {list.map((op) => (
                 <li key={op.id} className="ref-card">

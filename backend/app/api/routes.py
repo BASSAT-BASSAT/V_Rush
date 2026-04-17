@@ -1,4 +1,4 @@
-"""KernelLab API: operations list and process."""
+"""V-Rush API: operations list and process."""
 
 from __future__ import annotations
 
