@@ -9,6 +9,7 @@ type ProfileRow = {
   display_name: string | null
   phone: string | null
   bio: string | null
+  code_export_count: number | null
 }
 
 export function ProfilePage() {
@@ -94,6 +95,18 @@ export function ProfilePage() {
         <label className="profile-page__field">
           <span className="profile-page__label">Email</span>
           <input type="text" className="profile-page__input" value={row?.email ?? ''} readOnly disabled />
+        </label>
+
+        <label className="profile-page__field">
+          <span className="profile-page__label">Python code exports</span>
+          <input
+            type="text"
+            className="profile-page__input"
+            value={String(row?.code_export_count ?? 0)}
+            readOnly
+            disabled
+            title="Times you copied or downloaded pipeline Python from the main page"
+          />
         </label>
 
         <label className="profile-page__field">

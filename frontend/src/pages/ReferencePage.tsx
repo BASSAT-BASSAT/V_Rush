@@ -28,8 +28,8 @@ export function ReferencePage() {
           Each pipeline step maps to a classical OpenCV-style operation on the server. Short labels appear in the palette; here you
           get the full <strong>detail</strong> text, per-parameter hints (same as the pipeline sidebar), and whether the result is a
           normal BGR image (<code>spatial</code>) or a spectrum-style view (<code>spectrum</code>). After you tune JSON in the
-          pipeline, use <strong>Export Python</strong> on the main page to copy an OpenCV + NumPy script from <code>img</code> to{' '}
-          <code>out</code>.
+          pipeline, use <strong>Copy Python</strong> or <strong>Download .py</strong> on the main page for an OpenCV + NumPy script
+          from <code>img</code> to <code>out</code>.
         </p>
       </section>
 

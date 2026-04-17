@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useOutletContext } from 'react-router-dom'
 import { processImage } from '../api/cv'
+import { copyTextToClipboard } from '../lib/clipboard'
 import { pipelineToPython } from '../lib/pipelineToPython'
+import { recordCodeExport } from '../lib/recordCodeExport'
 import { BeforeAfter } from '../components/BeforeAfter'
 import { FileDrop } from '../components/FileDrop'
 import { OpPalette } from '../components/OpPalette'
@@ -24,6 +26,7 @@ export function PipelinePage() {
   const [procError, setProcError] = useState<string | null>(null)
   const [result, setResult] = useState<ProcessResponse | null>(null)
   const [afterSrc, setAfterSrc] = useState<string | null>(null)
+  const [copyNotice, setCopyNotice] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null)
 
   const opsById = useMemo(() => new Map(ops.map((o) => [o.id, o])), [ops])
 
@@ -45,6 +48,12 @@ export function PipelinePage() {
     const mime = result.mime || 'image/png'
     setAfterSrc(`data:${mime};base64,${result.image_base64}`)
   }, [result])
+
+  useEffect(() => {
+    if (!copyNotice || copyNotice.kind !== 'ok') return
+    const t = window.setTimeout(() => setCopyNotice(null), 6000)
+    return () => window.clearTimeout(t)
+  }, [copyNotice])
 
   const addOp = useCallback((op: OpInfo) => {
     setSteps((prev) => [
@@ -77,6 +86,7 @@ export function PipelinePage() {
     if (!file) return
     setLoadingRun(true)
     setProcError(null)
+    setCopyNotice(null)
     setResult(null)
     try {
       const pipeline = parseSteps()
@@ -118,12 +128,53 @@ export function PipelinePage() {
     [dragKey],
   )
 
-  const copyPipelineJson = useCallback(() => {
-    void navigator.clipboard.writeText(JSON.stringify(parseSteps(), null, 2))
+  const copyPipelineJson = useCallback(async () => {
+    setCopyNotice(null)
+    try {
+      await copyTextToClipboard(JSON.stringify(parseSteps(), null, 2))
+      setCopyNotice({ kind: 'ok', text: 'Pipeline JSON copied to clipboard.' })
+    } catch {
+      setCopyNotice({ kind: 'err', text: 'Could not copy JSON. Try Download .py or use a secure URL (https).' })
+    }
   }, [parseSteps])
 
-  const copyPythonExport = useCallback(() => {
-    void navigator.clipboard.writeText(pipelineToPython(parseSteps()))
+  const copyPythonExport = useCallback(async () => {
+    setCopyNotice(null)
+    try {
+      const code = pipelineToPython(parseSteps())
+      await copyTextToClipboard(code)
+      void recordCodeExport()
+      setCopyNotice({ kind: 'ok', text: 'Python script copied to clipboard. Paste into a .py file.' })
+    } catch (e) {
+      setCopyNotice({
+        kind: 'err',
+        text: e instanceof Error ? e.message : 'Could not copy. Use Download .py below.',
+      })
+    }
+  }, [parseSteps])
+
+  const downloadPythonFile = useCallback(() => {
+    setCopyNotice(null)
+    try {
+      const code = pipelineToPython(parseSteps())
+      const blob = new Blob([code], { type: 'text/x-python;charset=utf-8' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'v-rush-pipeline.py'
+      a.rel = 'noopener'
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+      void recordCodeExport()
+      setCopyNotice({ kind: 'ok', text: 'Saved v-rush-pipeline.py' })
+    } catch (e) {
+      setCopyNotice({
+        kind: 'err',
+        text: e instanceof Error ? e.message : 'Download failed.',
+      })
+    }
   }, [parseSteps])
 
   return (
@@ -163,6 +214,11 @@ export function PipelinePage() {
                 </ul>
               </div>
             )}
+            {copyNotice && (
+              <div className={`banner ${copyNotice.kind === 'ok' ? 'banner--ok' : 'banner--error'}`} role="status">
+                {copyNotice.text}
+              </div>
+            )}
             <div className="toolbar">
               <button type="button" className="btn btn--primary" disabled={!file || loadingRun} onClick={() => void run()}>
                 {loadingRun ? 'Running…' : 'Run pipeline'}
@@ -170,17 +226,26 @@ export function PipelinePage() {
               <button type="button" className="btn" disabled={steps.length === 0} onClick={() => setSteps([])}>
                 Clear
               </button>
-              <button type="button" className="btn" disabled={steps.length === 0} onClick={copyPipelineJson}>
+              <button type="button" className="btn" disabled={steps.length === 0} onClick={() => void copyPipelineJson()}>
                 Copy JSON
               </button>
               <button
                 type="button"
                 className="btn"
                 disabled={steps.length === 0}
-                onClick={copyPythonExport}
-                title="OpenCV + NumPy script: img → out (paste into a .py file)"
+                onClick={() => void copyPythonExport()}
+                title="Copy OpenCV + NumPy script (img → out). Falls back if clipboard is blocked."
               >
-                Export Python
+                Copy Python
+              </button>
+              <button
+                type="button"
+                className="btn btn--ghost"
+                disabled={steps.length === 0}
+                onClick={downloadPythonFile}
+                title="Always works — saves v-rush-pipeline.py"
+              >
+                Download .py
               </button>
               {result && (
                 <a className="btn btn--ghost" href={afterSrc ?? '#'} download="v-rush-output.png">

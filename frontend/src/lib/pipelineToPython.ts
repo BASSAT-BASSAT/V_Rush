@@ -383,7 +383,7 @@ out = cv2.cvtColor(_mag, cv2.COLOR_GRAY2BGR)`
         morph_tophat: 'cv2.MORPH_TOPHAT',
         morph_blackhat: 'cv2.MORPH_BLACKHAT',
       }
-      const m = morphMap[op]
+      const m = morphMap[op] ?? 'cv2.MORPH_ERODE'
       return `${hdr}
 _k = ${k}
 _ks = ${JSON.stringify(shape)}
