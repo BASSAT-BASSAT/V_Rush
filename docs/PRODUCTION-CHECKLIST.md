@@ -31,6 +31,36 @@ npx supabase db push
 
 (`db push` applies SQL under `supabase/migrations/` to the linked remote project. Run from the repo root.)
 
+## 1b. Email confirmation redirect + Google sign-in
+
+The app finalizes every Supabase auth flow on a dedicated route: **`/auth/callback`**. You must add that exact path to Supabase, and you must wire Google Cloud OAuth credentials into Supabase if you want one-click Google sign-in.
+
+### A. Allow `/auth/callback` in Supabase
+1. Supabase Dashboard → **Authentication → URL configuration → Redirect URLs**, add (one per line):
+   - `http://localhost:5173/auth/callback`
+   - `https://YOUR_PROJECT.vercel.app/auth/callback` (your real prod URL)
+   - `https://*.vercel.app/auth/callback` (covers preview deployments)
+2. **Save.** Without these entries Supabase will refuse to redirect back and the email link will land on an error page.
+
+### B. Enable Google provider in Supabase
+1. Supabase Dashboard → **Authentication → Providers → Google** → **Enable**.
+2. Leave the page open. Copy the **Callback URL (for OAuth)** Supabase shows you — it looks like  
+   `https://YOUR_PROJECT_REF.supabase.co/auth/v1/callback`. You will paste it into Google Cloud (step C.4).
+3. After step C, paste **Client ID** and **Client Secret** here, then **Save**.
+
+### C. Create Google OAuth credentials
+1. Open [Google Cloud Console](https://console.cloud.google.com/) → create or pick a project.
+2. **APIs & Services → OAuth consent screen** → **External** → fill App name, support email, developer email → **Save and continue** through the remaining screens (you can skip adding scopes; `email`, `profile`, `openid` are added automatically). While in **Testing**, add yourself under **Test users** so Google lets you sign in.
+3. **APIs & Services → Credentials → + Create credentials → OAuth client ID** → **Application type: Web application**.
+4. **Authorized redirect URIs** — paste only the Supabase callback URL from B.2 (e.g. `https://YOUR_PROJECT_REF.supabase.co/auth/v1/callback`). Do **not** add `/auth/callback` here; that one is for Supabase, not Google.
+5. **Authorized JavaScript origins** — add `http://localhost:5173`, `https://YOUR_PROJECT.vercel.app`, and any other origin that serves the app.
+6. **Create**, copy **Client ID** + **Client Secret**, paste both into Supabase (B.3), **Save** there.
+
+### D. Verify
+1. Hard-reload the deployed app, click **Continue with Google** on `/signin` — you should see the Google account picker, then land on `/auth/callback` with **Signed in with Google**, then auto-redirect to `/studio`.
+2. For email/password: sign up with a fresh address, click the link in the inbox. You should land on `/auth/callback` showing **Email confirmed**, then redirect to `/studio`.
+3. If a Gmail link looks expired the moment you click it, that is Gmail's URL prefetcher consuming the one-time PKCE code. Workaround: in Supabase **Authentication → Email Templates → Confirm signup**, keep the default `{{ .ConfirmationURL }}` token — Supabase will issue a `?token_hash=...&type=signup` link, which the callback page handles via `verifyOtp` and is immune to prefetch.
+
 ## 2. Sign-in works on Vercel (common fixes)
 
 1. **Build-time env:** Vite bakes `VITE_*` in at **build time**. In Vercel → Project → Settings → Environment Variables, set **`VITE_SUPABASE_URL`** and **`VITE_SUPABASE_ANON_KEY`** for **Production**, then **Redeploy** (or “Redeploy with existing Build Cache” cleared) so the new bundle contains them. If either is missing in the client, sign-in throws before reaching Supabase.

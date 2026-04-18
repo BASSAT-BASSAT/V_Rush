@@ -39,6 +39,12 @@ export function AuthScreen() {
     return <Navigate to={nextPath} replace />
   }
 
+  const callbackUrl = (() => {
+    if (typeof window === 'undefined') return undefined
+    const origin = window.location.origin.replace(/\/$/, '')
+    return `${origin}/auth/callback?next=${encodeURIComponent(nextPath)}`
+  })()
+
   const resendConfirmation = async () => {
     const addr = email.trim()
     if (!addr) return
@@ -46,18 +52,37 @@ export function AuthScreen() {
     setBusy(true)
     try {
       const sb = getSupabase()
-      const origin =
-        typeof window !== 'undefined' ? window.location.origin.replace(/\/$/, '') : ''
       const { error: err } = await sb.auth.resend({
         type: 'signup',
         email: addr,
-        options: origin ? { emailRedirectTo: `${origin}/` } : undefined,
+        options: callbackUrl ? { emailRedirectTo: callbackUrl } : undefined,
       })
       if (err) throw err
       setInfo('Another confirmation link was sent. Check spam / Promotions in Gmail.')
     } catch (err: unknown) {
       setError(authErrorMessage(err))
     } finally {
+      setBusy(false)
+    }
+  }
+
+  const signInWithGoogle = async () => {
+    setError(null)
+    setInfo(null)
+    setBusy(true)
+    try {
+      const sb = getSupabase()
+      const { error: err } = await sb.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: callbackUrl,
+          queryParams: { prompt: 'select_account' },
+        },
+      })
+      if (err) throw err
+      // On success the browser is being redirected — keep the spinner on.
+    } catch (err: unknown) {
+      setError(authErrorMessage(err))
       setBusy(false)
     }
   }
@@ -70,20 +95,16 @@ export function AuthScreen() {
     setBusy(true)
     try {
       const sb = getSupabase()
-      const origin =
-        typeof window !== 'undefined' ? window.location.origin.replace(/\/$/, '') : ''
       if (mode === 'signup') {
         const { data, error: err } = await sb.auth.signUp({
           email: email.trim(),
           password,
-          options: origin
-            ? { emailRedirectTo: `${origin}/` }
-            : undefined,
+          options: callbackUrl ? { emailRedirectTo: callbackUrl } : undefined,
         })
         if (err) throw err
         if (data.user && !data.session) {
           setInfo(
-            'Account created—Supabase will email a confirmation link (check Spam / Promotions). No email? Use Resend below, or turn off “Confirm email” in Supabase → Authentication → Providers → Email for testing.',
+            'Account created. We sent a confirmation link — check your inbox (and Spam / Promotions in Gmail). Click it and you will be brought back here automatically.',
           )
           setCanResendConfirmation(true)
         }
@@ -103,7 +124,43 @@ export function AuthScreen() {
       <div className="auth-screen__panel">
         <p className="auth-screen__eyebrow">V-Rush</p>
         <h2 className="auth-screen__title">{mode === 'signin' ? 'Sign in' : 'Create account'}</h2>
-        <p className="auth-screen__hint">Use your email to access the CV playground. Confirm your email if required by your project settings.</p>
+        <p className="auth-screen__hint">Continue with Google for one-click access, or use your email below.</p>
+
+        <button
+          type="button"
+          className="auth-screen__google"
+          onClick={() => void signInWithGoogle()}
+          disabled={busy}
+        >
+          <svg
+            className="auth-screen__google-icon"
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 18 18"
+            aria-hidden
+          >
+            <path
+              fill="#4285F4"
+              d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"
+            />
+            <path
+              fill="#34A853"
+              d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"
+            />
+            <path
+              fill="#FBBC05"
+              d="M3.964 10.706A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.706V4.962H.957A8.997 8.997 0 0 0 0 9c0 1.452.348 2.827.957 4.038l3.007-2.332z"
+            />
+            <path
+              fill="#EA4335"
+              d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.962L3.964 7.294C4.672 5.167 6.656 3.58 9 3.58z"
+            />
+          </svg>
+          <span>{busy ? 'Please wait…' : 'Continue with Google'}</span>
+        </button>
+
+        <div className="auth-screen__divider" role="separator" aria-label="or">
+          <span>or</span>
+        </div>
 
         <form className="auth-screen__form" onSubmit={(e) => void submit(e)}>
           <label className="auth-screen__field">

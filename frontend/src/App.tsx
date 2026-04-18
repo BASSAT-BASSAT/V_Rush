@@ -3,6 +3,7 @@ import { AppLayout } from './components/AppLayout'
 import { AuthScreen } from './components/AuthScreen'
 import { RequireAuth } from './components/RequireAuth'
 import { useAuth } from './hooks/useAuth'
+import { AuthCallbackPage } from './pages/AuthCallbackPage'
 import { LandingPage } from './pages/LandingPage'
 import { PipelinePage } from './pages/PipelinePage'
 import { ProfilePage } from './pages/ProfilePage'
@@ -52,6 +53,7 @@ function App() {
             }
           />
           <Route path="signin" element={<AuthScreen />} />
+          <Route path="auth/callback" element={<AuthCallbackPage />} />
         </Route>
       </Routes>
     </BrowserRouter>
