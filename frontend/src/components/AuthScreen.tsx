@@ -1,4 +1,6 @@
 import { useState, type FormEvent } from 'react'
+import { Navigate, useLocation } from 'react-router-dom'
+import { useAuth } from '../hooks/useAuth'
 import { getSupabase } from '../lib/supabase'
 
 function authErrorMessage(err: unknown): string {
@@ -16,6 +18,8 @@ function authErrorMessage(err: unknown): string {
 }
 
 export function AuthScreen() {
+  const { session, bypass } = useAuth()
+  const location = useLocation()
   const [mode, setMode] = useState<'signin' | 'signup'>('signin')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -23,6 +27,17 @@ export function AuthScreen() {
   const [info, setInfo] = useState<string | null>(null)
   const [canResendConfirmation, setCanResendConfirmation] = useState(false)
   const [busy, setBusy] = useState(false)
+
+  const nextPath = (() => {
+    const raw = new URLSearchParams(location.search).get('next')
+    if (!raw) return '/studio'
+    if (!raw.startsWith('/') || raw.startsWith('//')) return '/studio'
+    return raw
+  })()
+
+  if (bypass || session) {
+    return <Navigate to={nextPath} replace />
+  }
 
   const resendConfirmation = async () => {
     const addr = email.trim()

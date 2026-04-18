@@ -2,6 +2,7 @@
 
 export const CATEGORY_LABELS: Record<string, string> = {
   detection: 'Detection',
+  segmentation: 'Segmentation',
   geometric: 'Geometric',
   color: 'Color',
   intensity: 'Intensity',

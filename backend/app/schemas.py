@@ -38,6 +38,21 @@ class DetectionItem(BaseModel):
     )
 
 
+class ImageStats(BaseModel):
+    histogram_gray: list[int] = Field(..., description="256-bin luma histogram.")
+    histogram_rgb: dict[str, list[int]] = Field(
+        ..., description='Per-channel 256-bin histograms: {"r", "g", "b"}.'
+    )
+    mean: list[float] = Field(
+        ..., min_length=3, max_length=3, description="Mean per channel [r,g,b]."
+    )
+    std: list[float] = Field(..., min_length=3, max_length=3)
+    min: list[int] = Field(..., min_length=3, max_length=3)
+    max: list[int] = Field(..., min_length=3, max_length=3)
+    width: int
+    height: int
+
+
 class ProcessResponse(BaseModel):
     image_base64: str
     mime: str = "image/png"
@@ -47,3 +62,5 @@ class ProcessResponse(BaseModel):
     pipeline_applied: list[dict[str, Any]]
     last_output_kind: str = "spatial"
     detections: list[DetectionItem] = Field(default_factory=list)
+    before_stats: ImageStats | None = None
+    after_stats: ImageStats | None = None

@@ -16,7 +16,8 @@ from app.cv_ops.executor import execute_pipeline
 from app.cv_ops.registry import list_ops_public
 from app.cv_ops.validate import validate_pipeline
 from app.processing.io_image import ImageDecodeError, decode_image_bytes
-from app.schemas import DetectionItem, OpInfo, OpsListResponse, ProcessResponse
+from app.processing.stats import image_stats
+from app.schemas import DetectionItem, ImageStats, OpInfo, OpsListResponse, ProcessResponse
 
 # Routes are defined without ``/api`` in the path; ``main`` mounts this router twice:
 # ``prefix="/api"`` → ``/api/ops`` (browser, local dev behind proxy)
@@ -80,11 +81,13 @@ async def process_image(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
 
+    before_stats = ImageStats(**image_stats(decoded.bgr))
+
     try:
         result = execute_pipeline(decoded.bgr, validated)
     except RuntimeError as e:
         detail = str(e)
-        if "ultralytics" in detail.lower():
+        if "ultralytics" in detail.lower() or "mobilesam" in detail.lower():
             raise HTTPException(
                 status_code=503,
                 detail=detail,
@@ -100,6 +103,7 @@ async def process_image(
     applied = [{"op": oid, "params": dict(params)} for oid, params in validated.steps]
 
     det_models = [DetectionItem(**d) for d in result.detections]
+    after_stats = ImageStats(**image_stats(result.image_bgr))
 
     return ProcessResponse(
         image_base64=b64,
@@ -110,4 +114,6 @@ async def process_image(
         pipeline_applied=applied,
         last_output_kind=result.last_output_kind,
         detections=det_models,
+        before_stats=before_stats,
+        after_stats=after_stats,
     )

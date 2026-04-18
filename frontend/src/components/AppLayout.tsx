@@ -12,11 +12,17 @@ export function AppLayout() {
   const [ops, setOps] = useState<AppLayoutOutlet['ops']>([])
   const [opsError, setOpsError] = useState<string | null>(null)
 
+  const isLanding = location.pathname === '/'
+  const isStudio =
+    location.pathname.startsWith('/studio') || location.pathname.startsWith('/lab')
+
   useEffect(() => {
+    // Only fetch ops once the studio is open, since /api/ops requires auth.
+    if (!isStudio) return
     fetchOps(accessToken)
       .then(setOps)
       .catch((e: unknown) => setOpsError(e instanceof Error ? e.message : 'Failed to load ops'))
-  }, [accessToken])
+  }, [accessToken, isStudio])
 
   const outletCtx: AppLayoutOutlet = { ops, opsError, accessToken }
 
@@ -59,7 +65,13 @@ export function AppLayout() {
             <div className="app__header-right">
               <nav className="app__nav" aria-label="Main">
                 <NavLink to="/" className={({ isActive }) => `app__nav-link${isActive ? ' app__nav-link--on' : ''}`} end>
-                  Pipeline
+                  Home
+                </NavLink>
+                <NavLink to="/studio" className={({ isActive }) => `app__nav-link${isActive ? ' app__nav-link--on' : ''}`}>
+                  Studio
+                </NavLink>
+                <NavLink to="/lab" className={({ isActive }) => `app__nav-link${isActive ? ' app__nav-link--on' : ''}`}>
+                  Lab
                 </NavLink>
                 <NavLink to="/reference" className={({ isActive }) => `app__nav-link${isActive ? ' app__nav-link--on' : ''}`}>
                   Reference
@@ -71,7 +83,7 @@ export function AppLayout() {
                 )}
               </nav>
               <ThemeToggle />
-              {!bypass && session && (
+              {!bypass && session ? (
                 <div className="app__user">
                   <span className="app__user-email" title={session.user.email ?? ''}>
                     {session.user.email}
@@ -80,10 +92,16 @@ export function AppLayout() {
                     Sign out
                   </button>
                 </div>
+              ) : (
+                !bypass && !isLanding && (
+                  <NavLink to="/signin" className="btn btn--primary btn--sm">
+                    Sign in
+                  </NavLink>
+                )
               )}
-              {location.pathname === '/' && (
+              {isStudio && ops.length > 0 && (
                 <div className="app__header-badges">
-                  <span className="chip chip--accent">{ops.length ? `${ops.length} ops` : 'Loading…'}</span>
+                  <span className="chip chip--accent">{`${ops.length} ops`}</span>
                 </div>
               )}
             </div>
@@ -94,23 +112,29 @@ export function AppLayout() {
 
         <footer className="app__footer">
           <div className="app__footer-row">
-            <span className="app__footer-brand">V-Rush</span>
+            <span className="app__footer-brand">V-Rush&trade;</span>
             <span className="app__footer-sep" aria-hidden>
               ·
             </span>
-            <span className="app__footer-cofounders">
-              Co-Founders: <strong>Mohamed Elbassat</strong> and <strong>Rokayya Aly</strong>
+            <span className="app__footer-rights">
+              &copy; {new Date().getFullYear()} V-Rush. All rights reserved.
             </span>
-            <span className="app__footer-sep" aria-hidden>
-              ·
-            </span>
-            <a
-              className="app__footer-link"
-              href="mailto:mohamedd77bassat@gmail.com"
-              title="mohamedd77bassat@gmail.com"
-            >
-              Contact
-            </a>
+            {isLanding && (
+              <>
+                <span className="app__footer-sep" aria-hidden>
+                  ·
+                </span>
+                <a className="app__footer-link" href="#about">
+                  Founders
+                </a>
+                <span className="app__footer-sep" aria-hidden>
+                  ·
+                </span>
+                <a className="app__footer-link" href="#contact">
+                  Contact
+                </a>
+              </>
+            )}
           </div>
           {!bypass && (
             <div className="app__footer-newsletter">

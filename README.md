@@ -79,6 +79,19 @@ python -c "from ultralytics import YOLO; YOLO('yolo26n.pt').export(format='onnx'
 git add yolo26n.onnx && git commit -m "chore: refresh yolo26n.onnx"
 ```
 
+**Segmentation (MobileSAM):** the `mobile_sam` op in the studio runs a distilled Segment Anything Model (Apache-2.0 weights) through ONNX Runtime as two files: `backend/mobile_sam_encoder.onnx` (~40 MB, a tiny ViT image encoder) and `backend/mobile_sam_decoder.onnx` (~2 MB, a prompt-conditioned mask decoder). They are **not** committed to the repo because of size — run the one-time export locally before deploying:
+
+```bash
+cd backend
+python -m venv .sam-export && .\.sam-export\Scripts\Activate.ps1   # or: source .sam-export/bin/activate
+pip install torch==2.2.2 torchvision==0.17.2 onnx "onnxruntime>=1.17,<2" git+https://github.com/ChaoningZhang/MobileSAM.git
+curl -LO https://github.com/ChaoningZhang/MobileSAM/raw/master/weights/mobile_sam.pt
+python scripts/export_mobile_sam.py
+git add mobile_sam_encoder.onnx mobile_sam_decoder.onnx
+```
+
+Then uncomment the two `COPY backend/mobile_sam_*.onnx` lines in [`Dockerfile`](Dockerfile) and [`Dockerfile.backend`](Dockerfile.backend). Without these files the `mobile_sam` op returns a clear error at call time; every other op (classical segmentation, YOLO26, etc.) keeps working.
+
 Copy [`frontend/.env.example`](frontend/.env.example) or [`kernellab.env.example`](kernellab.env.example) as a checklist. Run `.\scripts\sync-kernellab-env.ps1` locally to split env into `frontend/.env` and `backend/.env`.
 
 ## 3. Split deploy (Vercel + external API)

@@ -1,14 +1,16 @@
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
-import { AuthScreen } from './components/AuthScreen'
+import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import { AppLayout } from './components/AppLayout'
+import { AuthScreen } from './components/AuthScreen'
+import { RequireAuth } from './components/RequireAuth'
 import { useAuth } from './hooks/useAuth'
+import { LandingPage } from './pages/LandingPage'
 import { PipelinePage } from './pages/PipelinePage'
 import { ProfilePage } from './pages/ProfilePage'
 import { ReferencePage } from './pages/ReferencePage'
 import './App.css'
 
 function App() {
-  const { loading, bypass, session } = useAuth()
+  const { loading } = useAuth()
 
   if (loading) {
     return (
@@ -19,22 +21,37 @@ function App() {
     )
   }
 
-  if (!bypass && !session) {
-    return (
-      <div className="app">
-        <div className="app__aurora" aria-hidden />
-        <AuthScreen />
-      </div>
-    )
-  }
-
   return (
     <BrowserRouter>
       <Routes>
         <Route element={<AppLayout />}>
-          <Route index element={<PipelinePage />} />
+          <Route index element={<LandingPage />} />
+          <Route
+            path="studio"
+            element={
+              <RequireAuth>
+                <PipelinePage />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="lab"
+            element={
+              <RequireAuth>
+                <PipelinePage />
+              </RequireAuth>
+            }
+          />
           <Route path="reference" element={<ReferencePage />} />
-          <Route path="profile" element={bypass ? <Navigate to="/" replace /> : <ProfilePage />} />
+          <Route
+            path="profile"
+            element={
+              <RequireAuth>
+                <ProfilePage />
+              </RequireAuth>
+            }
+          />
+          <Route path="signin" element={<AuthScreen />} />
         </Route>
       </Routes>
     </BrowserRouter>

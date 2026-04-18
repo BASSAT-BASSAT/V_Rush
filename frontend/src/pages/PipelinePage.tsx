@@ -1,15 +1,18 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link, useOutletContext } from 'react-router-dom'
+import { Link, NavLink, useLocation, useOutletContext } from 'react-router-dom'
 import { processImage } from '../api/cv'
+import { isMlOp } from '../cv/mlOps'
 import { bboxToCropFraction } from '../lib/bboxCrop'
 import { copyTextToClipboard } from '../lib/clipboard'
 import { pipelineToPython } from '../lib/pipelineToPython'
 import { recordCodeExport } from '../lib/recordCodeExport'
 import { BeforeAfter } from '../components/BeforeAfter'
 import { FileDrop } from '../components/FileDrop'
+import { HistogramPanel } from '../components/HistogramPanel'
 import { OpPalette } from '../components/OpPalette'
 import { PipelineStack } from '../components/PipelineStack'
-import type { DetectionItem, OpInfo, PipelineStepUI, ProcessResponse } from '../types/cv'
+import { computeImageStats } from '../lib/imageStats'
+import type { DetectionItem, ImageStats, OpInfo, PipelineStepUI, ProcessResponse } from '../types/cv'
 import type { AppLayoutOutlet } from '../types/layout'
 
 function newKey() {
@@ -20,6 +23,8 @@ type WorkspaceTab = 'ops' | 'pipeline'
 
 export function PipelinePage() {
   const { ops, opsError, accessToken } = useOutletContext<AppLayoutOutlet>()
+  const location = useLocation()
+  const mode: 'classical' | 'ml' = location.pathname.startsWith('/lab') ? 'ml' : 'classical'
 
   const [file, setFile] = useState<File | null>(null)
   const [beforeUrl, setBeforeUrl] = useState<string | null>(null)
@@ -31,19 +36,68 @@ export function PipelinePage() {
   const [afterSrc, setAfterSrc] = useState<string | null>(null)
   const [copyNotice, setCopyNotice] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null)
   const [workspaceTab, setWorkspaceTab] = useState<WorkspaceTab>('ops')
+  const [clientBeforeStats, setClientBeforeStats] = useState<ImageStats | null>(null)
+  const [histogramOpen, setHistogramOpen] = useState<boolean>(() => {
+    try {
+      return window.localStorage.getItem('vrush-hist-open') !== '0'
+    } catch {
+      return true
+    }
+  })
 
+  /** Ops shown in the palette for the current route (classical vs ML). */
+  const visibleOps = useMemo(
+    () => (mode === 'ml' ? ops.filter((o) => isMlOp(o.id)) : ops.filter((o) => !isMlOp(o.id))),
+    [ops, mode],
+  )
+
+  /** Full op lookup (by id) — always covers every op so rendering existing steps still works
+   *  if a user somehow has cross-mode steps (e.g. pasted JSON from the other route). */
   const opsById = useMemo(() => new Map(ops.map((o) => [o.id, o])), [ops])
 
   const hasYoloStep = useMemo(() => steps.some((s) => s.op === 'yolo26_detect'), [steps])
 
+  /** The first mobile_sam step (if any) — drives the interactive overlay on the preview. */
+  const samStepHandle = useMemo(() => {
+    const idx = steps.findIndex((s) => s.op === 'mobile_sam')
+    if (idx < 0) return null
+    return {
+      stepIndex: idx + 1,
+      paramsJson: steps[idx].paramsJson,
+      key: steps[idx].key,
+    }
+  }, [steps])
+
+  const onChangeSamParams = useCallback(
+    (json: string) => {
+      if (!samStepHandle) return
+      setSteps((prev) =>
+        prev.map((s) => (s.key === samStepHandle.key ? { ...s, paramsJson: json } : s)),
+      )
+    },
+    [samStepHandle],
+  )
+
   useEffect(() => {
     if (!file) {
       setBeforeUrl(null)
+      setClientBeforeStats(null)
       return
     }
     const u = URL.createObjectURL(file)
     setBeforeUrl(u)
-    return () => URL.revokeObjectURL(u)
+    let cancelled = false
+    computeImageStats(file)
+      .then((stats) => {
+        if (!cancelled) setClientBeforeStats(stats)
+      })
+      .catch(() => {
+        if (!cancelled) setClientBeforeStats(null)
+      })
+    return () => {
+      cancelled = true
+      URL.revokeObjectURL(u)
+    }
   }, [file])
 
   useEffect(() => {
@@ -205,6 +259,25 @@ export function PipelinePage() {
 
   return (
     <>
+      <nav className="studio-mode" aria-label="Studio mode">
+        <NavLink
+          to="/studio"
+          end
+          className={({ isActive }) => `studio-mode__tab${isActive ? ' studio-mode__tab--on' : ''}`}
+        >
+          <span className="studio-mode__title">Classical CV Studio</span>
+          <span className="studio-mode__sub">OpenCV: filtering, edges, morphology, K-Means, Watershed, GrabCut…</span>
+        </NavLink>
+        <NavLink
+          to="/lab"
+          end
+          className={({ isActive }) => `studio-mode__tab${isActive ? ' studio-mode__tab--on' : ''}`}
+        >
+          <span className="studio-mode__title">Deep Learning Lab</span>
+          <span className="studio-mode__sub">YOLOv26 detection · MobileSAM segmentation · ONNX Runtime</span>
+        </NavLink>
+      </nav>
+
       {opsError && <div className="banner banner--error">{opsError}</div>}
 
       <div className="app__grid">
@@ -230,7 +303,21 @@ export function PipelinePage() {
             <div className="pipeline-page__meta">
               <span className="chip">{steps.length} steps</span>
             </div>
-            <BeforeAfter beforeUrl={beforeUrl} afterSrc={afterSrc} lastKind={result?.last_output_kind ?? null} />
+            <BeforeAfter
+              beforeUrl={beforeUrl}
+              afterSrc={afterSrc}
+              lastKind={result?.last_output_kind ?? null}
+              samStep={
+                samStepHandle
+                  ? {
+                      stepIndex: samStepHandle.stepIndex,
+                      paramsJson: samStepHandle.paramsJson,
+                      onChangeParamsJson: onChangeSamParams,
+                    }
+                  : null
+              }
+            />
+
             {procError && <div className="banner banner--error">{procError}</div>}
             {result && result.warnings.length > 0 && (
               <div className="banner banner--warn">
@@ -242,38 +329,12 @@ export function PipelinePage() {
                 </ul>
               </div>
             )}
-            {detections.length > 0 && (
-              <div className="detections-panel">
-                <h3 className="detections-panel__title">Detections (last run)</h3>
-                <p className="detections-panel__hint">
-                  Boxes are in pixel coordinates for the image returned above (after your pipeline).{' '}
-                  <Link to="/reference">Reference</Link> lists COCO class names.
-                </p>
-                <ul className="detections-panel__list">
-                  {detections.map((d, i) => (
-                    <li key={`${d.label}-${i}-${d.bbox.join(',')}`} className="detections-panel__row">
-                      <span className="detections-panel__label">
-                        {d.label}{' '}
-                        <span className="detections-panel__conf">{(d.confidence * 100).toFixed(1)}%</span>
-                      </span>
-                      <button
-                        type="button"
-                        className="btn btn--ghost btn--sm"
-                        onClick={() => addCropFromDetection(d)}
-                        title="Append a crop_fraction step using this box"
-                      >
-                        Use bbox for crop
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
             {copyNotice && (
               <div className={`banner ${copyNotice.kind === 'ok' ? 'banner--ok' : 'banner--error'}`} role="status">
                 {copyNotice.text}
               </div>
             )}
+
             <div className="toolbar toolbar--primary">
               <button type="button" className="btn btn--primary" disabled={!file || loadingRun} onClick={() => void run()}>
                 {loadingRun ? 'Running…' : 'Run pipeline'}
@@ -312,6 +373,59 @@ export function PipelinePage() {
                 </div>
               </details>
             </div>
+
+            {detections.length > 0 && (
+              <div className="detections-panel">
+                <h3 className="detections-panel__title">Detections (last run)</h3>
+                <p className="detections-panel__hint">
+                  Boxes are in pixel coordinates for the image returned above (after your pipeline).{' '}
+                  <Link to="/reference">Reference</Link> lists COCO class names.
+                </p>
+                <ul className="detections-panel__list">
+                  {detections.map((d, i) => (
+                    <li key={`${d.label}-${i}-${d.bbox.join(',')}`} className="detections-panel__row">
+                      <span className="detections-panel__label">
+                        {d.label}{' '}
+                        <span className="detections-panel__conf">{(d.confidence * 100).toFixed(1)}%</span>
+                      </span>
+                      <button
+                        type="button"
+                        className="btn btn--ghost btn--sm"
+                        onClick={() => addCropFromDetection(d)}
+                        title="Append a crop_fraction step using this box"
+                      >
+                        Use bbox for crop
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            <details
+              className="hist-panel-wrap"
+              open={histogramOpen}
+              onToggle={(e) => {
+                const isOpen = (e.currentTarget as HTMLDetailsElement).open
+                setHistogramOpen(isOpen)
+                try {
+                  window.localStorage.setItem('vrush-hist-open', isOpen ? '1' : '0')
+                } catch {
+                  // ignore storage errors
+                }
+              }}
+            >
+              <summary className="hist-panel-wrap__summary">Histogram &amp; pixel stats (optional)</summary>
+              <HistogramPanel
+                before={result?.before_stats ?? clientBeforeStats}
+                after={result?.after_stats ?? null}
+                afterEmptyHint={
+                  file
+                    ? 'Run the pipeline to compare the processed distribution here.'
+                    : 'Upload an image, add steps, and run the pipeline to see the after-histogram.'
+                }
+              />
+            </details>
           </section>
         </main>
 
@@ -336,11 +450,18 @@ export function PipelinePage() {
               </button>
             </div>
             {workspaceTab === 'ops' && ops.length > 0 && (
-              <OpPalette ops={ops} onAdd={addOp} disabled={loadingRun || !file} embedded />
+              <OpPalette ops={visibleOps} onAdd={addOp} disabled={loadingRun || !file} embedded />
             )}
             {workspaceTab === 'ops' && ops.length === 0 && <p className="panel-hint">Loading operations…</p>}
             {workspaceTab === 'pipeline' && (
               <>
+                {mode === 'ml' && (
+                  <p className="panel-hint panel-hint--tight">
+                    <strong>Deep Learning Lab:</strong> YOLOv26 and MobileSAM run on the image <em>after</em> any preprocessing
+                    you stack above them. Head back to{' '}
+                    <Link to="/studio">Classical CV</Link> for filtering, edges, morphology, and K-Means / Watershed / GrabCut.
+                  </p>
+                )}
                 {hasYoloStep && (
                   <p className="panel-hint panel-hint--tight">
                     <strong>YOLO</strong> runs on the image <em>after</em> the steps above it. Put preprocessing first to detect on

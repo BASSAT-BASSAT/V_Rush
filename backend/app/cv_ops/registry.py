@@ -16,10 +16,12 @@ from app.cv_ops.intensity import INTENSITY_SPECS
 from app.cv_ops.lbp import LBP_SPECS
 from app.cv_ops.linear import LINEAR_SPECS
 from app.cv_ops.log import LOG_SPECS
+from app.cv_ops.mobile_sam import MOBILE_SAM_SPECS
 from app.cv_ops.morph_hat import MORPH_HAT_SPECS
 from app.cv_ops.morphology_ops import MORPH_SPECS
 from app.cv_ops.noise import NOISE_SPECS
 from app.cv_ops.param_help import OP_DETAIL_DOC, OP_PARAM_HELP
+from app.cv_ops.segmentation import SEGMENTATION_SPECS
 from app.cv_ops.types import OpSpec
 from app.cv_ops.yolo26 import YOLO26_SPECS
 
@@ -41,6 +43,8 @@ _RAW: list[dict[str, Any]] = (
     + GLCM_SPECS
     + GABOR_SPECS
     + YOLO26_SPECS
+    + SEGMENTATION_SPECS
+    + MOBILE_SAM_SPECS
 )
 
 

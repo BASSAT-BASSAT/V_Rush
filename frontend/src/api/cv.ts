@@ -44,10 +44,39 @@ export async function processImage(
     body: form,
   })
   if (!res.ok) {
-    const err = await res.json().catch(() => ({}))
-    const d = err && typeof err === 'object' && 'detail' in err ? (err as { detail: unknown }).detail : res.statusText
-    const msg = typeof d === 'string' ? d : JSON.stringify(d)
-    throw new Error(msg || `HTTP ${res.status}`)
+    // Try to extract FastAPI's ``{ "detail": ... }`` JSON first; fall back to raw text
+    // (proxies like Vercel emit plain "Bad Gateway" / "Gateway Timeout" for 5xx).
+    let detail: string | null = null
+    try {
+      const j = (await res.clone().json()) as { detail?: unknown }
+      if (typeof j?.detail === 'string') detail = j.detail
+      else if (j?.detail != null) detail = JSON.stringify(j.detail)
+    } catch {
+      const txt = (await res.text().catch(() => '')).trim()
+      if (txt) detail = txt.length > 280 ? `${txt.slice(0, 280)}…` : txt
+    }
+
+    // Tack on an actionable hint for the common 5xx shapes so users don't
+    // stare at a bare "Bad Gateway".
+    let hint = ''
+    const usesMl = pipeline.some(
+      (s) => typeof s === 'object' && s !== null && (
+        (s as { op?: string }).op === 'mobile_sam' ||
+        (s as { op?: string }).op === 'yolo26_detect'
+      ),
+    )
+    if (res.status === 502 || res.status === 504) {
+      hint = usesMl
+        ? ' — the ML function may be cold-starting or out of memory. Wait a few seconds and try again, or run on a smaller image.'
+        : ' — the backend is temporarily unreachable. Try again in a few seconds.'
+    } else if (res.status === 503) {
+      hint = ' — a model is not available on this server (e.g. MobileSAM ONNX weights not committed yet).'
+    } else if (res.status === 413) {
+      hint = ' — the image is too large for the server (see MAX_IMAGE_BYTES).'
+    }
+
+    const base = detail || res.statusText || `HTTP ${res.status}`
+    throw new Error(`${base}${hint}`)
   }
   return res.json() as Promise<ProcessResponse>
 }

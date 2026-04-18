@@ -17,6 +17,9 @@ COPY backend/requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY backend/yolo26n.onnx ./yolo26n.onnx
+# MobileSAM ONNX weights are optional; uncomment after running backend/scripts/export_mobile_sam.py.
+# COPY backend/mobile_sam_encoder.onnx ./mobile_sam_encoder.onnx
+# COPY backend/mobile_sam_decoder.onnx ./mobile_sam_decoder.onnx
 COPY backend/app ./app
 
 EXPOSE 8000

@@ -8,6 +8,7 @@ from typing import Any
 import cv2
 import numpy as np
 
+from app.cv_ops.mobile_sam import mobile_sam_segment_step
 from app.cv_ops.registry import OPERATIONS
 from app.cv_ops.validate import ValidatedPipeline
 from app.cv_ops.yolo26 import yolo26_detect_step
@@ -31,6 +32,9 @@ def execute_pipeline(bgr: np.ndarray, validated: ValidatedPipeline) -> Execution
         spec = OPERATIONS[op_id]
         if op_id == "yolo26_detect":
             out, step_det = yolo26_detect_step(out, params)
+            detections = step_det
+        elif op_id == "mobile_sam":
+            out, step_det = mobile_sam_segment_step(out, params)
             detections = step_det
         else:
             out = spec.apply(out, params)

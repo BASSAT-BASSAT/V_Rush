@@ -31,6 +31,10 @@ COPY backend/requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY backend/yolo26n.onnx ./yolo26n.onnx
+# MobileSAM ONNX weights are optional; copy if present (COPY [] form doesn't glob).
+# Export them locally (see README) then uncomment the next two lines:
+# COPY backend/mobile_sam_encoder.onnx ./mobile_sam_encoder.onnx
+# COPY backend/mobile_sam_decoder.onnx ./mobile_sam_decoder.onnx
 COPY backend/app ./app
 
 COPY --from=frontend /src/frontend/dist ./static

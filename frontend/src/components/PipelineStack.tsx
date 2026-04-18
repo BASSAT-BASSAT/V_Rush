@@ -1,4 +1,5 @@
 import { useCallback } from 'react'
+import { MobileSamParamsEditor } from './MobileSamParamsEditor'
 import { Yolo26ParamsEditor } from './Yolo26ParamsEditor'
 import type { OpInfo, PipelineStepUI } from '../types/cv'
 
@@ -72,6 +73,14 @@ export function PipelineStack({
                 <div aria-describedby={Object.keys(help).length ? `help-${s.key}` : undefined}>
                   <span className="pipeline-stack__params-label">Parameters</span>
                   <Yolo26ParamsEditor
+                    paramsJson={s.paramsJson}
+                    onChangeParamsJson={(json) => onChangeParams(s.key, json)}
+                  />
+                </div>
+              ) : s.op === 'mobile_sam' ? (
+                <div aria-describedby={Object.keys(help).length ? `help-${s.key}` : undefined}>
+                  <span className="pipeline-stack__params-label">Prompt</span>
+                  <MobileSamParamsEditor
                     paramsJson={s.paramsJson}
                     onChangeParamsJson={(json) => onChangeParams(s.key, json)}
                   />

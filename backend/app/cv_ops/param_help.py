@@ -225,6 +225,37 @@ OP_PARAM_HELP: dict[str, dict[str, str]] = {
         "max_det": "Upper bound on how many boxes are returned.",
         "draw": "Draw boxes and labels on the pipeline image for the preview.",
     },
+    # —— Segmentation ——
+    "kmeans": {
+        "k": "Number of clusters (dominant colors) in [2, 32]. Small k = strong posterization.",
+    },
+    "watershed": {
+        "threshold": (
+            "Seed threshold (0–255) passed to Otsu's INV binarization. Usually 127 works; "
+            "tune if objects are very dark or very bright."
+        ),
+    },
+    "grabcut": {
+        "iterations": "GrabCut iterations (1–10). More iterations = cleaner mask, slower.",
+        "margin_percent": (
+            "Inset of the rectangle prompt on each side, as a percent of image size (1–40). "
+            "10% works well for centered subjects; reduce for larger subjects."
+        ),
+    },
+    "connected_blobs": {
+        "threshold": "Grayscale threshold (1–254) for binarization before blob labelling.",
+    },
+    "mobile_sam": {
+        "prompt_type": '"point" (single click) or "box" (rectangle).',
+        "point_x_frac": "Foreground point x as a fraction of image width (0–1). Ignored for box prompts.",
+        "point_y_frac": "Foreground point y as a fraction of image height (0–1). Ignored for box prompts.",
+        "point_label": "1 = foreground point, 0 = background point (subtract from mask).",
+        "box_x1_frac": "Left edge of box prompt as x-fraction (0–1).",
+        "box_y1_frac": "Top edge of box prompt as y-fraction (0–1).",
+        "box_x2_frac": "Right edge of box prompt as x-fraction (0–1).",
+        "box_y2_frac": "Bottom edge of box prompt as y-fraction (0–1).",
+        "output": '"overlay" (translucent color + contour), "cutout" (mask as alpha), or "mask" (B/W only).',
+    },
 }
 
 # Longer Reference text when spec has no detail_doc (or empty). Multi-paragraph welcome.
@@ -388,4 +419,34 @@ OP_DETAIL_DOC: dict[str, str] = {
         "find more matches but cost more time."
     ),
     "nl_means_color": "OpenCV fastNlMeansDenoisingColored with separate h and h_color.",
+    "kmeans": (
+        "Flattens pixels to (H·W, 3) and runs k-means (k-means++ seeding, 10 attempts) in RGB. "
+        "Each pixel is replaced by its cluster center — a fast color-quantization / poster effect. "
+        "Small k (2–6) for posterization, 8–16 for palette extraction."
+    ),
+    "watershed": (
+        "Seeds a topographic flood: Otsu-threshold (inverted) on luma, morphological open, "
+        "distance-transform peak as sure-foreground, connected-component labels as markers, "
+        "cv2.watershed for the flood. The labeled regions are blended 50/50 with the source so "
+        "edges are visible. Best for separating touching bright objects on a dark background."
+    ),
+    "grabcut": (
+        "Graph-cut foreground extraction (Rother et al. 2004). A rectangle inset by "
+        "margin_percent is treated as 'probably foreground', everything outside as background. "
+        "Alternates Gaussian Mixture Model fitting and min-cut until convergence. Best for "
+        "centered subjects; for anywhere-in-image prompts use the MobileSAM op instead."
+    ),
+    "connected_blobs": (
+        "Thresholds the luma and labels 4-connected components. Each blob gets a stable "
+        "pseudo-random color (background is black). Useful for counting objects or verifying "
+        "that a prior thresholding step produced the expected islands."
+    ),
+    "mobile_sam": (
+        "MobileSAM (Zhang et al. 2023) is a distilled Segment Anything model with a tiny ViT "
+        "encoder. Runs as two ONNX sessions: a ~40 MB encoder turns the image into a 256-channel "
+        "embedding, and a ~2 MB decoder combines that embedding with a point or box prompt to "
+        "produce a mask. Click on the image in the studio to drop a foreground point; shift+click "
+        "for a background point; drag for a box. Output can be an overlay, a cutout, or a raw "
+        "black-and-white mask."
+    ),
 }

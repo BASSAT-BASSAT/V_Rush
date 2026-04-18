@@ -6,6 +6,7 @@ import type { OpInfo } from '../types/cv'
 /** Sensible order for CV pipelines (matches common processing flow). */
 const CATEGORY_ORDER = [
   'detection',
+  'segmentation',
   'geometric',
   'color',
   'intensity',
