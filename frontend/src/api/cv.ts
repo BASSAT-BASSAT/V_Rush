@@ -5,6 +5,7 @@ import type {
   KaggleSearchResponse,
   MatchOptions,
   MatchResponse,
+  MatcherCapabilities,
   OpInfo,
   ProcessResponse,
 } from '../types/cv'
@@ -111,6 +112,14 @@ export async function matchImages(
   })
   if (!res.ok) throw new Error(await readApiError(res, 'Failed to match images'))
   return res.json() as Promise<MatchResponse>
+}
+
+export async function fetchMatcherCapabilities(
+  accessToken?: string | null,
+): Promise<MatcherCapabilities> {
+  const res = await fetch(`${base()}/api/match/algos`, { headers: authHeaders(accessToken) })
+  if (!res.ok) throw new Error(await readApiError(res, 'Failed to load matcher capabilities'))
+  return res.json() as Promise<MatcherCapabilities>
 }
 
 // =========================

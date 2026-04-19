@@ -107,6 +107,20 @@ class MatchResponse(BaseModel):
     warnings: list[str] = Field(default_factory=list)
 
 
+class MatcherAlgoInfo(BaseModel):
+    id: str
+    label: str
+    kind: str  # "classical" | "deep"
+    descriptor: str
+    sub: str
+
+
+class MatcherCapabilities(BaseModel):
+    algos: list[MatcherAlgoInfo]
+    deep_available: bool = False
+    deep_reason: str = ""
+
+
 # =========================
 # KAGGLE ( /kaggle/* )
 # =========================

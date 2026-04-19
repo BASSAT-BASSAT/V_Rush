@@ -12,6 +12,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 
 from app.auth_deps import require_user
 from app.config import settings
+from app.cv_ops.deep_matchers import DeepMatcherUnavailable, deep_matchers_available
 from app.cv_ops.matchers import (
     detect_and_describe,
     draw_matches,
@@ -20,12 +21,20 @@ from app.cv_ops.matchers import (
     warp_overlay,
 )
 from app.processing.io_image import ImageDecodeError, decode_image_bytes
-from app.schemas import MatchOptions, MatchResponse, MatchStats
+from app.schemas import (
+    MatchOptions,
+    MatchResponse,
+    MatchStats,
+    MatcherAlgoInfo,
+    MatcherCapabilities,
+)
 
 router = APIRouter(tags=["matcher"])
 
 
-_ALLOWED_ALGOS = {"sift", "orb", "akaze", "brisk"}
+_CLASSICAL_ALGOS = {"sift", "orb", "akaze", "brisk"}
+_DEEP_ALGOS = {"disk", "aliked"}
+_ALLOWED_ALGOS = _CLASSICAL_ALGOS | _DEEP_ALGOS
 _ALLOWED_MATCHERS = {"bf", "flann"}
 
 
@@ -80,8 +89,12 @@ async def match_images(
     warnings: list[str] = []
     t0 = time.perf_counter()
 
-    a = detect_and_describe(dec_a.bgr, opts.algo, max_features=opts.max_features)
-    b = detect_and_describe(dec_b.bgr, opts.algo, max_features=opts.max_features)
+    try:
+        a = detect_and_describe(dec_a.bgr, opts.algo, max_features=opts.max_features)
+        b = detect_and_describe(dec_b.bgr, opts.algo, max_features=opts.max_features)
+    except DeepMatcherUnavailable as e:
+        # Friendly 503 instead of a 500 stack trace when kornia/torch are missing.
+        raise HTTPException(status_code=503, detail=str(e)) from e
 
     if not a.keypoints or not b.keypoints:
         warnings.append("One of the images produced no keypoints; try another algorithm.")
@@ -165,4 +178,68 @@ async def match_images(
         homography=homography,
         stats=stats,
         warnings=warnings,
+    )
+
+
+# Static catalog used by the frontend to render algorithm pills with the right
+# label, kind ("classical" / "deep") and per-algo blurb.
+_ALGO_CATALOG: list[MatcherAlgoInfo] = [
+    MatcherAlgoInfo(
+        id="sift",
+        label="SIFT",
+        kind="classical",
+        descriptor="float (128-d)",
+        sub="Scale-Invariant Feature Transform — gold standard, slowest but most robust to scale + rotation.",
+    ),
+    MatcherAlgoInfo(
+        id="orb",
+        label="ORB",
+        kind="classical",
+        descriptor="binary (256-bit)",
+        sub="Oriented FAST + BRIEF — extremely fast, rotation invariant, weak under big scale changes.",
+    ),
+    MatcherAlgoInfo(
+        id="akaze",
+        label="AKAZE",
+        kind="classical",
+        descriptor="float (M-LDB)",
+        sub="Accelerated KAZE in nonlinear scale space — sharper edges than SIFT, similar accuracy.",
+    ),
+    MatcherAlgoInfo(
+        id="brisk",
+        label="BRISK",
+        kind="classical",
+        descriptor="binary (512-bit)",
+        sub="Multi-scale FAST corners with rotation-invariant binary descriptor — fast and free.",
+    ),
+    MatcherAlgoInfo(
+        id="disk",
+        label="DISK",
+        kind="deep",
+        descriptor="float (128-d, learned)",
+        sub="Learned local features (Tyszkiewicz et al. 2020). Stronger under heavy viewpoint / illumination change.",
+    ),
+    MatcherAlgoInfo(
+        id="aliked",
+        label="ALIKED",
+        kind="deep",
+        descriptor="float (128-d, learned)",
+        sub="ALIKED-N16 — lighter deep detector with deformable descriptors, fast on CPU.",
+    ),
+]
+
+
+@router.get("/match/algos", response_model=MatcherCapabilities)
+def match_algos() -> MatcherCapabilities:
+    """Return which local matchers this build supports.
+
+    Classical algos (SIFT/ORB/AKAZE/BRISK) are always available via OpenCV.
+    Deep algos (DISK/ALIKED) require the optional ``kornia`` + ``torch``
+    install — ``deep_available`` flips on once those packages are present.
+    """
+    deep_ok, deep_reason = deep_matchers_available()
+    return MatcherCapabilities(
+        algos=_ALGO_CATALOG,
+        deep_available=deep_ok,
+        deep_reason=deep_reason,
     )
