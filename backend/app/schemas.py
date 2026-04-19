@@ -110,15 +110,13 @@ class MatchResponse(BaseModel):
 class MatcherAlgoInfo(BaseModel):
     id: str
     label: str
-    kind: str  # "classical" | "deep"
+    kind: str  # currently always "classical"
     descriptor: str
     sub: str
 
 
 class MatcherCapabilities(BaseModel):
     algos: list[MatcherAlgoInfo]
-    deep_available: bool = False
-    deep_reason: str = ""
 
 
 # =========================

@@ -12,22 +12,16 @@ from typing import Literal
 import cv2
 import numpy as np
 
-Algo = Literal["sift", "orb", "akaze", "brisk", "disk", "aliked"]
+Algo = Literal["sift", "orb", "akaze", "brisk"]
 MatcherKind = Literal["bf", "flann"]
 
 
 # Float-descriptor algos use NORM_L2 + KDTree FLANN; binary algos use HAMMING + LSH FLANN.
 _BINARY_ALGOS: set[str] = {"orb", "brisk"}
-# Deep CNN-based algos always produce float descriptors and are matched with L2.
-_DEEP_ALGOS: set[str] = {"disk", "aliked"}
 
 
 def _is_binary(algo: str) -> bool:
     return algo in _BINARY_ALGOS
-
-
-def _is_deep(algo: str) -> bool:
-    return algo in _DEEP_ALGOS
 
 
 def _make_detector(algo: str, *, max_features: int) -> cv2.Feature2D:
@@ -80,16 +74,8 @@ class DetectResult:
 
 
 def detect_and_describe(bgr: np.ndarray, algo: str, *, max_features: int = 0) -> DetectResult:
-    a = algo.lower()
-    if _is_deep(a):
-        # Lazy import so the slim Vercel build that lacks kornia/torch still loads.
-        from app.cv_ops.deep_matchers import detect_and_describe_deep
-
-        out = detect_and_describe_deep(bgr, a, max_features=max_features or 2048)
-        return DetectResult(keypoints=out.keypoints, descriptors=out.descriptors)
-
     gray = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
-    det = _make_detector(a, max_features=max_features)
+    det = _make_detector(algo, max_features=max_features)
     kps, desc = det.detectAndCompute(gray, None)
     if desc is None:
         return DetectResult(keypoints=list(kps or []), descriptors=None)

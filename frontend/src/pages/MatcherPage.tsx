@@ -5,7 +5,6 @@ import { FileDrop } from '../components/FileDrop'
 import type {
   MatchOptions,
   MatchResponse,
-  MatcherAlgo,
   MatcherAlgoInfo,
   MatcherCapabilities,
   MatcherKind,
@@ -43,20 +42,6 @@ const FALLBACK_ALGOS: MatcherAlgoInfo[] = [
     descriptor: 'binary (512-bit)',
     sub: 'Multi-scale FAST corners with rotation-invariant binary descriptor.',
   },
-  {
-    id: 'disk',
-    label: 'DISK',
-    kind: 'deep',
-    descriptor: 'float (128-d, learned)',
-    sub: 'Learned local features — strong under heavy viewpoint / illumination change.',
-  },
-  {
-    id: 'aliked',
-    label: 'ALIKED',
-    kind: 'deep',
-    descriptor: 'float (128-d, learned)',
-    sub: 'Lighter deep detector with deformable descriptors, fast on CPU.',
-  },
 ]
 
 const MATCHERS: { id: MatcherKind; label: string; sub: string }[] = [
@@ -68,7 +53,7 @@ const PARAM_HELP: Record<string, { title: string; body: string }> = {
   algorithm: {
     title: 'Algorithm',
     body:
-      'How keypoints are detected and described. Float descriptors (SIFT, AKAZE, DISK, ALIKED) compare with L2 distance; binary descriptors (ORB, BRISK) compare with Hamming distance. Deep methods need the kornia + torch optional install.',
+      'How keypoints are detected and described. Float descriptors (SIFT, AKAZE) compare with L2 distance; binary descriptors (ORB, BRISK) compare with Hamming distance.',
   },
   matcher: {
     title: 'Matcher',
@@ -137,7 +122,7 @@ const RESULT_HELP: { key: string; title: string; body: string }[] = [
     key: 'time',
     title: 'Compute time',
     body:
-      'Server time for detection + matching + RANSAC. Deep detectors (DISK, ALIKED) are noticeably slower than ORB/BRISK on CPU.',
+      'Server time for detection + matching + RANSAC. ORB and BRISK are typically the fastest; SIFT is slowest but most accurate.',
   },
   {
     key: 'H',
@@ -215,9 +200,7 @@ export function MatcherPage() {
       })
       .catch(() => {
         // fall back to the static catalog (e.g. while offline)
-        if (!cancelled) {
-          setCaps({ algos: FALLBACK_ALGOS, deep_available: false, deep_reason: '' })
-        }
+        if (!cancelled) setCaps({ algos: FALLBACK_ALGOS })
       })
     return () => {
       cancelled = true
@@ -225,8 +208,6 @@ export function MatcherPage() {
   }, [accessToken])
 
   const algos = caps?.algos ?? FALLBACK_ALGOS
-  const deepAvailable = caps?.deep_available ?? false
-  const deepReason = caps?.deep_reason ?? ''
   const selectedAlgo = useMemo(
     () => algos.find((a) => a.id === opts.algo) ?? algos[0],
     [algos, opts.algo],
@@ -404,37 +385,21 @@ export function MatcherPage() {
             <HelpTip label="What is this?" body={PARAM_HELP.algorithm.body} />
           </div>
           <div className="matcher__pills">
-            {algos.map((a) => {
-              const isDeep = a.kind === 'deep'
-              const disabled = loading || (isDeep && !deepAvailable)
-              return (
-                <button
-                  key={a.id}
-                  type="button"
-                  className={`matcher__pill${opts.algo === a.id ? ' matcher__pill--on' : ''}${isDeep ? ' matcher__pill--deep' : ''}`}
-                  onClick={() => update('algo', a.id)}
-                  disabled={disabled}
-                  title={isDeep && !deepAvailable ? deepReason : a.sub}
-                >
-                  <span className="matcher__pill-row">
-                    <span className="matcher__pill-name">{a.label}</span>
-                    <span className={`matcher__pill-badge matcher__pill-badge--${a.kind}`}>
-                      {a.kind === 'deep' ? 'deep' : 'classical'}
-                    </span>
-                  </span>
-                  <span className="matcher__pill-sub">{a.sub}</span>
-                  <span className="matcher__pill-meta">{a.descriptor}</span>
-                </button>
-              )
-            })}
+            {algos.map((a) => (
+              <button
+                key={a.id}
+                type="button"
+                className={`matcher__pill${opts.algo === a.id ? ' matcher__pill--on' : ''}`}
+                onClick={() => update('algo', a.id)}
+                disabled={loading}
+                title={a.sub}
+              >
+                <span className="matcher__pill-name">{a.label}</span>
+                <span className="matcher__pill-sub">{a.sub}</span>
+                <span className="matcher__pill-meta">{a.descriptor}</span>
+              </button>
+            ))}
           </div>
-          {!deepAvailable && (
-            <p className="matcher__group-hint matcher__group-hint--warn">
-              DISK and ALIKED are deep-learning matchers and need
-              <code> kornia + torch </code>
-              installed on the server. The rest still work.
-            </p>
-          )}
         </div>
 
         <div className="matcher__group">

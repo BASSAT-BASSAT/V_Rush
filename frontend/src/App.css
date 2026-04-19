@@ -2014,12 +2014,6 @@
   border-color: rgba(148, 163, 184, 0.4);
 }
 
-.ref-card__kind--deep {
-  background: linear-gradient(135deg, rgba(217, 70, 239, 0.18), rgba(6, 182, 212, 0.18));
-  color: #f0abfc;
-  border-color: rgba(217, 70, 239, 0.45);
-}
-
 .ref-card__one-liner {
   margin: 0.2rem 0 0.55rem;
   font-size: 0.85rem;
@@ -3761,12 +3755,8 @@
 
 .matcher__pills {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.6rem;
-}
-
-@media (min-width: 1100px) {
-  .matcher__pills { grid-template-columns: repeat(6, minmax(0, 1fr)); }
 }
 
 .matcher__pills--two {
@@ -3774,7 +3764,7 @@
 }
 
 @media (max-width: 720px) {
-  .matcher__pills { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .matcher__pills,
   .matcher__pills--two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
@@ -3783,15 +3773,6 @@
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
-}
-
-.matcher__group-hint--warn {
-  color: #fbbf24;
-}
-.matcher__group-hint--warn code {
-  background: rgba(251, 191, 36, 0.12);
-  border-radius: 4px;
-  padding: 1px 4px;
 }
 
 .matcher__pill {
@@ -3825,13 +3806,6 @@
     0 12px 30px -18px rgba(139, 92, 246, 0.65);
 }
 
-.matcher__pill-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.4rem;
-}
-
 .matcher__pill-name {
   font-weight: 700;
   font-size: 0.95rem;
@@ -3850,37 +3824,6 @@
   font-family: var(--kl-font-mono);
   color: var(--kl-text-dim);
   letter-spacing: 0.04em;
-}
-
-.matcher__pill-badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 1px 6px;
-  border-radius: 999px;
-  font-size: 0.6rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.matcher__pill-badge--classical {
-  background: rgba(148, 163, 184, 0.18);
-  color: var(--kl-text-muted);
-}
-
-.matcher__pill-badge--deep {
-  background: linear-gradient(135deg, rgba(217, 70, 239, 0.25), rgba(6, 182, 212, 0.25));
-  color: #f0abfc;
-}
-
-.matcher__pill--deep {
-  border-color: rgba(217, 70, 239, 0.35);
-}
-
-.matcher__pill--deep.matcher__pill--on {
-  box-shadow:
-    0 0 0 1px rgba(217, 70, 239, 0.65),
-    0 12px 30px -18px rgba(217, 70, 239, 0.65);
 }
 
 /* ----- sliders ----------------------------------------------------------- */

@@ -24,7 +24,7 @@ function groupByCategory(ops: OpInfo[]) {
 interface MatcherDoc {
   id: string
   label: string
-  kind: 'classical' | 'deep'
+  kind: 'classical'
   descriptor: string
   one_liner: string
   paragraphs: string[]
@@ -115,49 +115,9 @@ const MATCHER_DOCS: MatcherDoc[] = [
     ],
     weaknesses: [
       'Slower than ORB — bigger descriptors',
-      'Still not as distinctive as deep features under big viewpoint change',
+      'Less distinctive than SIFT under heavy viewpoint change',
     ],
     origin: 'Leutenegger et al., "BRISK: Binary Robust Invariant Scalable Keypoints" (ICCV 2011).',
-  },
-  {
-    id: 'disk',
-    label: 'DISK',
-    kind: 'deep',
-    descriptor: 'float · 128-d learned',
-    one_liner: 'Differentiable, end-to-end learned local features.',
-    paragraphs: [
-      'DISK trains the entire detect + describe pipeline jointly with a reinforcement-learning style reward, so the network learns which keypoints will actually match well downstream. The output looks just like SIFT — keypoints + 128-d float descriptors — but is dramatically more robust under hard viewpoint, season and illumination changes.',
-      'In V-Rush we expose DISK through kornia (which bundles the published weights). The optional `kornia` + `torch` install on the server unlocks it; without those packages the matcher window will fall back to a polite 503.',
-    ],
-    strengths: [
-      'State-of-the-art accuracy on hard image pairs',
-      'Drop-in replacement for SIFT — same descriptor shape',
-    ],
-    weaknesses: [
-      'Heavier than classical detectors — needs torch on the server',
-      'Slower than ORB / BRISK on CPU',
-    ],
-    origin: 'Tyszkiewicz, Fua & Trulls, "DISK: Learning Local Features with Policy Gradient" (NeurIPS 2020).',
-  },
-  {
-    id: 'aliked',
-    label: 'ALIKED',
-    kind: 'deep',
-    descriptor: 'float · 128-d learned',
-    one_liner: 'Lightweight deep detector with deformable descriptors.',
-    paragraphs: [
-      'ALIKED ("A Lighter Keypoint and Descriptor Extraction network with Deformable transformation") replaces conventional convolutions with deformable ones so descriptors adapt to local geometry. The N16 variant we ship is intentionally tiny and fast on CPU.',
-      'Like DISK, ALIKED runs through kornia in V-Rush. If you self-host with `pip install kornia torch torchvision` it shows up in the matcher window with a "deep" badge.',
-    ],
-    strengths: [
-      'Very small model — fast on CPU',
-      'Strong under viewpoint change thanks to deformable kernels',
-    ],
-    weaknesses: [
-      'Still needs torch on the server',
-      'Slightly behind DISK on hardest pairs',
-    ],
-    origin: 'Zhao et al., "ALIKED: A Lighter Keypoint and Descriptor Extraction Network via Deformable Transformation" (T-IM 2023).',
   },
 ]
 
@@ -165,7 +125,7 @@ const MATCHER_PARAM_DOCS: { key: string; title: string; body: string }[] = [
   {
     key: 'algorithm',
     title: 'Algorithm',
-    body: 'Which detector + descriptor to use. Float descriptors (SIFT, AKAZE, DISK, ALIKED) are matched with L2 distance; binary descriptors (ORB, BRISK) use Hamming distance.',
+    body: 'Which detector + descriptor to use. Float descriptors (SIFT, AKAZE) are matched with L2 distance; binary descriptors (ORB, BRISK) use Hamming distance.',
   },
   {
     key: 'matcher',
@@ -205,7 +165,7 @@ const MATCHER_RESULT_DOCS: { key: string; title: string; body: string }[] = [
   { key: 'good', title: 'Good matches', body: "Pairs that survived Lowe's ratio test (when enabled). These are the visually plausible correspondences fed into RANSAC." },
   { key: 'inliers', title: 'RANSAC inliers', body: 'Among the good matches, how many actually agree with a single perspective transform. Anything above ~30% usually means a strong match.' },
   { key: 'avg', title: 'Avg distance', body: 'Mean descriptor distance over the kept matches. Lower = more confident matches. Units depend on the descriptor: L2 norm for float, Hamming bits for binary.' },
-  { key: 'time', title: 'Compute time', body: 'Server time for detection + matching + RANSAC. Deep detectors are noticeably slower than ORB / BRISK on CPU.' },
+  { key: 'time', title: 'Compute time', body: 'Server time for detection + matching + RANSAC. ORB and BRISK are typically the fastest; SIFT is slowest but most accurate.' },
   { key: 'H', title: 'Homography matrix', body: "The 3×3 transform mapping A's pixel coordinates onto B's. Multiply by [x, y, 1]ᵀ and divide by the third element to project A → B." },
 ]
 
@@ -314,8 +274,7 @@ export function ReferencePage() {
           <a href="#local-matchers" className="ref-page__jump">
             Local feature matchers
           </a>{' '}
-          for full explanations of SIFT, ORB, AKAZE, BRISK, DISK and ALIKED — plus what every slider and stat in the matcher window
-          means.
+          for full explanations of SIFT, ORB, AKAZE and BRISK — plus what every slider and stat in the matcher window means.
         </p>
       </section>
 

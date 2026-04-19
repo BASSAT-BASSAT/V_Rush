@@ -58,14 +58,14 @@ export interface PipelineStepUI {
 // MATCHER
 // =========================
 
-export type MatcherAlgo = 'sift' | 'orb' | 'akaze' | 'brisk' | 'disk' | 'aliked'
+export type MatcherAlgo = 'sift' | 'orb' | 'akaze' | 'brisk'
 export type MatcherKind = 'bf' | 'flann'
 
 export interface MatcherAlgoInfo {
   id: MatcherAlgo
   label: string
-  /** "classical" (always available) or "deep" (needs kornia + torch on the server). */
-  kind: 'classical' | 'deep'
+  /** Currently always "classical" — kept as a string for forward compatibility. */
+  kind: 'classical'
   /** Short string describing the descriptor type, e.g. "binary (256-bit)". */
   descriptor: string
   /** One-line tagline shown on the algorithm pill. */
@@ -74,10 +74,6 @@ export interface MatcherAlgoInfo {
 
 export interface MatcherCapabilities {
   algos: MatcherAlgoInfo[]
-  /** True when DISK / ALIKED can actually be run on the server right now. */
-  deep_available: boolean
-  /** Setup hint surfaced when deep_available is false. */
-  deep_reason: string
 }
 
 export interface MatchOptions {
