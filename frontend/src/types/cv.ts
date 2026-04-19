@@ -53,3 +53,110 @@ export interface PipelineStepUI {
   op: string
   paramsJson: string
 }
+
+// =========================
+// MATCHER
+// =========================
+
+export type MatcherAlgo = 'sift' | 'orb' | 'akaze' | 'brisk'
+export type MatcherKind = 'bf' | 'flann'
+
+export interface MatchOptions {
+  algo: MatcherAlgo
+  matcher: MatcherKind
+  use_ratio_test: boolean
+  ratio: number
+  top_n: number
+  max_features: number
+  estimate_homography: boolean
+  ransac_thresh: number
+  overlay: boolean
+  overlay_alpha: number
+}
+
+export interface MatchStats {
+  keypoints_a: number
+  keypoints_b: number
+  raw_matches: number
+  good_matches: number
+  inliers: number
+  inlier_ratio: number
+  avg_distance: number
+  elapsed_ms: number
+  algo: string
+  matcher: string
+}
+
+export interface MatchResponse {
+  match_image_base64: string
+  overlay_image_base64: string | null
+  mime: string
+  width: number
+  height: number
+  homography: number[][] | null
+  stats: MatchStats
+  warnings: string[]
+}
+
+// =========================
+// KAGGLE
+// =========================
+
+export interface KaggleCreds {
+  username: string
+  key: string
+}
+
+export interface KaggleFileInfo {
+  path: string
+  size: number
+  is_image: boolean
+  is_archive?: boolean
+}
+
+export interface KaggleFileListResponse {
+  owner: string
+  name: string
+  files: KaggleFileInfo[]
+}
+
+export interface KaggleImageResponse {
+  image_base64: string
+  mime: string
+  width: number
+  height: number
+  path: string
+}
+
+export interface KaggleDatasetSummary {
+  ref: string
+  title: string
+  subtitle: string
+  last_updated: string
+  download_count: number
+  vote_count: number
+  url: string
+}
+
+export interface KaggleSearchResponse {
+  query: string
+  datasets: KaggleDatasetSummary[]
+}
+
+/** Payload handed to PipelinePage / MatcherPage via router state. */
+export interface PreloadedImageState {
+  /** Slot to populate when arriving on the matcher page. */
+  slot?: 'A' | 'B'
+  /** Original filename to use when reconstructing a File. */
+  filename: string
+  /** Mime type of the image bytes (e.g. "image/png"). */
+  mime: string
+  /** Base64-encoded bytes (no data: prefix). */
+  base64: string
+}
+
+/** Two images sent at once to the matcher (slot A + slot B). */
+export interface PreloadedPairState {
+  a: { filename: string; mime: string; base64: string }
+  b: { filename: string; mime: string; base64: string }
+}

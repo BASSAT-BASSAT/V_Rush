@@ -5,19 +5,23 @@ export function Hero() {
   return (
     <section className="landing-hero">
       <div className="landing-hero__content">
-        <span className="landing-hero__eyebrow">Classical · Deep · Hybrid</span>
+        <span className="landing-hero__eyebrow">Classical · Deep · Matcher</span>
         <h1 className="landing-hero__title">
-          The visual playground for<br />
+          The visual workbench for<br />
           <span className="landing-hero__grad">computer vision pipelines.</span>
         </h1>
         <p className="landing-hero__lede">
-          Stack OpenCV operations, YOLO detection, and SAM-grade segmentation without writing a
-          single import. Upload an image, drag operations into the stack, and watch the transform
-          happen side-by-side — with live pixel-value histograms for every step.
+          Stack OpenCV ops and run YOLO&nbsp;+&nbsp;MobileSAM in the Studio, or line up two
+          images with SIFT&nbsp;/&nbsp;ORB&nbsp;/&nbsp;AKAZE&nbsp;/&nbsp;BRISK in the Matcher —
+          never write an import. Upload, drag, watch the transform happen side-by-side, with
+          live pixel-value histograms for every step.
         </p>
         <div className="landing-hero__cta-row">
           <Link to="/studio" className="btn btn--primary btn--lg">
             Open the Studio
+          </Link>
+          <Link to="/match" className="btn btn--ghost btn--lg">
+            Try the Matcher
           </Link>
           <Link to="/reference" className="btn btn--ghost btn--lg">
             Browse operations
@@ -26,7 +30,8 @@ export function Hero() {
         <ul className="landing-hero__chips" aria-label="Highlights">
           <li className="chip chip--accent">ONNX YOLOv26</li>
           <li className="chip chip--accent">MobileSAM prompts</li>
-          <li className="chip chip--accent">Classical image processing & filters</li>
+          <li className="chip chip--accent">SIFT · ORB · AKAZE · BRISK matchers</li>
+          <li className="chip chip--accent">RANSAC homography</li>
           <li className="chip chip--accent">Live histograms</li>
         </ul>
       </div>

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, NavLink, useLocation, useOutletContext } from 'react-router-dom'
-import { processImage } from '../api/cv'
+import { base64ToFile, processImage } from '../api/cv'
+import type { PreloadedImageState } from '../types/cv'
 import { isMlOp } from '../cv/mlOps'
 import { bboxToCropFraction } from '../lib/bboxCrop'
 import { copyTextToClipboard } from '../lib/clipboard'
@@ -78,6 +79,14 @@ export function PipelinePage() {
     },
     [samStepHandle],
   )
+
+  useEffect(() => {
+    const state = location.state as PreloadedImageState | null
+    if (!state || !state.base64 || !state.filename) return
+    const f = base64ToFile(state.base64, state.filename, state.mime || 'image/png')
+    setFile(f)
+    window.history.replaceState({}, '')
+  }, [location.state])
 
   useEffect(() => {
     if (!file) {
@@ -278,7 +287,7 @@ export function PipelinePage() {
           end
           className={({ isActive }) => `studio-mode__tab${isActive ? ' studio-mode__tab--on' : ''}`}
         >
-          <span className="studio-mode__title">Classical CV Studio</span>
+          <span className="studio-mode__title">Local · Classical CV</span>
           <span className="studio-mode__sub">OpenCV: filtering, edges, morphology, K-Means, Watershed, GrabCut…</span>
         </NavLink>
         <NavLink
@@ -286,7 +295,7 @@ export function PipelinePage() {
           end
           className={({ isActive }) => `studio-mode__tab${isActive ? ' studio-mode__tab--on' : ''}`}
         >
-          <span className="studio-mode__title">Deep Learning Lab</span>
+          <span className="studio-mode__title">Deep · Learning Lab</span>
           <span className="studio-mode__sub">YOLOv26 detection · MobileSAM segmentation · ONNX Runtime</span>
         </NavLink>
       </nav>
@@ -478,9 +487,9 @@ export function PipelinePage() {
               <>
                 {mode === 'ml' && (
                   <p className="panel-hint panel-hint--tight">
-                    <strong>Deep Learning Lab:</strong> YOLOv26 and MobileSAM run on the image <em>after</em> any preprocessing
-                    you stack above them. Head back to{' '}
-                    <Link to="/studio">Classical CV</Link> for filtering, edges, morphology, and K-Means / Watershed / GrabCut.
+                    <strong>Deep mode:</strong> YOLOv26 and MobileSAM run on the image <em>after</em> any preprocessing
+                    you stack above them. Switch to{' '}
+                    <Link to="/studio">Local</Link> for filtering, edges, morphology, and K-Means / Watershed / GrabCut.
                   </p>
                 )}
                 {hasYoloStep && (

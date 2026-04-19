@@ -58,7 +58,7 @@ export function AppLayout() {
                 <div className="brand__text">
                   <p className="brand__eyebrow">Classical computer vision</p>
                   <h1 className="brand__title">V-Rush</h1>
-                  <p className="tagline">Stack OpenCV-style ops, run the pipeline, compare before and after in one place.</p>
+                  <p className="tagline">Stack OpenCV ops, match keypoints, and pull from Kaggle — one workbench for every pipeline.</p>
                 </div>
               </NavLink>
             </div>
@@ -67,11 +67,14 @@ export function AppLayout() {
                 <NavLink to="/" className={({ isActive }) => `app__nav-link${isActive ? ' app__nav-link--on' : ''}`} end>
                   Home
                 </NavLink>
-                <NavLink to="/studio" className={({ isActive }) => `app__nav-link${isActive ? ' app__nav-link--on' : ''}`}>
+                <NavLink to="/studio" className={({ isActive }) => `app__nav-link${isActive || location.pathname.startsWith('/lab') ? ' app__nav-link--on' : ''}`}>
                   Studio
                 </NavLink>
-                <NavLink to="/lab" className={({ isActive }) => `app__nav-link${isActive ? ' app__nav-link--on' : ''}`}>
-                  Lab
+                <NavLink to="/match" className={({ isActive }) => `app__nav-link${isActive ? ' app__nav-link--on' : ''}`}>
+                  Matcher
+                </NavLink>
+                <NavLink to="/datasets" className={({ isActive }) => `app__nav-link${isActive ? ' app__nav-link--on' : ''}`}>
+                  Datasets
                 </NavLink>
                 <NavLink to="/reference" className={({ isActive }) => `app__nav-link${isActive ? ' app__nav-link--on' : ''}`}>
                   Reference

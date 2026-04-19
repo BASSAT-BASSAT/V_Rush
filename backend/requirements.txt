@@ -8,3 +8,5 @@ pydantic>=2.5.0,<3
 PyJWT>=2.8.0,<3
 # YOLO26 (COCO detection) via ONNX Runtime — no PyTorch, fits Vercel's bundle limit.
 onnxruntime>=1.17,<2
+# Kaggle dataset proxy (per-user credentials).
+httpx>=0.27.0,<1

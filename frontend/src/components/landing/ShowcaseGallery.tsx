@@ -34,6 +34,12 @@ export function ShowcaseGallery() {
       before: <StreetScene />,
       after: <StreetSceneBoxes />,
     },
+    {
+      label: 'SIFT feature matcher',
+      op: 'matcher.sift',
+      before: <PairLeft />,
+      after: <PairMatched />,
+    },
   ]
 
   return (
@@ -217,3 +223,102 @@ function StreetSceneBoxes() {
     </Frame>
   )
 }
+
+/** Two side-by-side patches with sparse keypoint markers — pre-match. */
+function PairLeft() {
+  return (
+    <Frame bg="#0b1220">
+      <defs>
+        <linearGradient id="pairA" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#312e81" />
+          <stop offset="1" stopColor="#0f172a" />
+        </linearGradient>
+        <linearGradient id="pairB" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#0f172a" />
+          <stop offset="1" stopColor="#1e293b" />
+        </linearGradient>
+      </defs>
+      <rect x="6" y="14" width="90" height="112" rx="6" fill="url(#pairA)" />
+      <rect x="104" y="14" width="90" height="112" rx="6" fill="url(#pairB)" />
+      <text x="10" y="11" fontFamily="Inter" fontSize="7" fill="#94a3b8">A</text>
+      <text x="108" y="11" fontFamily="Inter" fontSize="7" fill="#94a3b8">B</text>
+      {/* simple "scene": triangle + circle on both, slightly translated/rotated */}
+      <polygon points="32,86 60,42 80,86" fill="#fbbf24" opacity="0.85" />
+      <circle cx="50" cy="58" r="9" fill="#f472b6" opacity="0.85" />
+      <polygon points="138,82 168,46 184,90" fill="#fbbf24" opacity="0.85" />
+      <circle cx="152" cy="60" r="9" fill="#f472b6" opacity="0.85" />
+      {/* keypoint dots */}
+      {[
+        [32, 86],
+        [80, 86],
+        [60, 42],
+        [50, 58],
+        [44, 70],
+        [70, 70],
+      ].map((p, i) => (
+        <circle key={`la${i}`} cx={p[0]} cy={p[1]} r="2.2" fill="none" stroke="#22d3ee" strokeWidth="1" />
+      ))}
+      {[
+        [138, 82],
+        [184, 90],
+        [168, 46],
+        [152, 60],
+        [146, 72],
+        [172, 72],
+      ].map((p, i) => (
+        <circle key={`lb${i}`} cx={p[0]} cy={p[1]} r="2.2" fill="none" stroke="#22d3ee" strokeWidth="1" />
+      ))}
+    </Frame>
+  )
+}
+
+/** Same patches, with match lines + "sift inliers" tag. */
+function PairMatched() {
+  const left: [number, number][] = [
+    [32, 86],
+    [80, 86],
+    [60, 42],
+    [50, 58],
+    [44, 70],
+    [70, 70],
+  ]
+  const right: [number, number][] = [
+    [138, 82],
+    [184, 90],
+    [168, 46],
+    [152, 60],
+    [146, 72],
+    [172, 72],
+  ]
+  const colors = ['#22d3ee', '#a78bfa', '#34d399', '#f472b6', '#fbbf24', '#60a5fa']
+  return (
+    <Frame bg="#050810">
+      <rect x="6" y="14" width="90" height="112" rx="6" fill="#0f172a" />
+      <rect x="104" y="14" width="90" height="112" rx="6" fill="#111827" />
+      <polygon points="32,86 60,42 80,86" fill="none" stroke="#fbbf24" strokeWidth="1.2" opacity="0.55" />
+      <circle cx="50" cy="58" r="9" fill="none" stroke="#f472b6" strokeWidth="1.2" opacity="0.55" />
+      <polygon points="138,82 168,46 184,90" fill="none" stroke="#fbbf24" strokeWidth="1.2" opacity="0.55" />
+      <circle cx="152" cy="60" r="9" fill="none" stroke="#f472b6" strokeWidth="1.2" opacity="0.55" />
+      {left.map((p, i) => (
+        <g key={`m${i}`}>
+          <line
+            x1={p[0]}
+            y1={p[1]}
+            x2={right[i][0]}
+            y2={right[i][1]}
+            stroke={colors[i]}
+            strokeWidth="1"
+            opacity="0.95"
+          />
+          <circle cx={p[0]} cy={p[1]} r="2.5" fill={colors[i]} />
+          <circle cx={right[i][0]} cy={right[i][1]} r="2.5" fill={colors[i]} />
+        </g>
+      ))}
+      <rect x="6" y="2" width="60" height="11" rx="3" fill="#0ea5e9" opacity="0.85" />
+      <text x="10" y="10" fontFamily="Inter" fontSize="7" fill="#0b1220" fontWeight="700">
+        SIFT · 6 inliers
+      </text>
+    </Frame>
+  )
+}
+

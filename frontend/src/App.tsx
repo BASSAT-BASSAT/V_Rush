@@ -4,7 +4,9 @@ import { AuthScreen } from './components/AuthScreen'
 import { RequireAuth } from './components/RequireAuth'
 import { useAuth } from './hooks/useAuth'
 import { AuthCallbackPage } from './pages/AuthCallbackPage'
+import { DatasetsPage } from './pages/DatasetsPage'
 import { LandingPage } from './pages/LandingPage'
+import { MatcherPage } from './pages/MatcherPage'
 import { PipelinePage } from './pages/PipelinePage'
 import { ProfilePage } from './pages/ProfilePage'
 import { ReferencePage } from './pages/ReferencePage'
@@ -40,6 +42,22 @@ function App() {
             element={
               <RequireAuth>
                 <PipelinePage />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="match"
+            element={
+              <RequireAuth>
+                <MatcherPage />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="datasets"
+            element={
+              <RequireAuth>
+                <DatasetsPage />
               </RequireAuth>
             }
           />

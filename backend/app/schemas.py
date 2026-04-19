@@ -64,3 +64,84 @@ class ProcessResponse(BaseModel):
     detections: list[DetectionItem] = Field(default_factory=list)
     before_stats: ImageStats | None = None
     after_stats: ImageStats | None = None
+
+
+# =========================
+# MATCHER ( /match )
+# =========================
+
+class MatchOptions(BaseModel):
+    algo: str = Field(default="sift", description="One of: sift, orb, akaze, brisk")
+    matcher: str = Field(default="bf", description="One of: bf, flann")
+    use_ratio_test: bool = True
+    ratio: float = Field(default=0.75, ge=0.5, le=0.95)
+    top_n: int = Field(default=50, ge=1, le=1000)
+    max_features: int = Field(default=2000, ge=0, le=20000)
+    estimate_homography: bool = True
+    ransac_thresh: float = Field(default=4.0, ge=0.5, le=20.0)
+    overlay: bool = False
+    overlay_alpha: float = Field(default=0.5, ge=0.0, le=1.0)
+
+
+class MatchStats(BaseModel):
+    keypoints_a: int
+    keypoints_b: int
+    raw_matches: int
+    good_matches: int
+    inliers: int
+    inlier_ratio: float
+    avg_distance: float
+    elapsed_ms: float
+    algo: str
+    matcher: str
+
+
+class MatchResponse(BaseModel):
+    match_image_base64: str
+    overlay_image_base64: str | None = None
+    mime: str = "image/png"
+    width: int
+    height: int
+    homography: list[list[float]] | None = None
+    stats: MatchStats
+    warnings: list[str] = Field(default_factory=list)
+
+
+# =========================
+# KAGGLE ( /kaggle/* )
+# =========================
+
+class KaggleFileInfo(BaseModel):
+    path: str = Field(..., description="File path inside the dataset")
+    size: int = Field(default=0, description="File size in bytes (0 if unknown)")
+    is_image: bool = False
+    is_archive: bool = False
+
+
+class KaggleFileListResponse(BaseModel):
+    owner: str
+    name: str
+    files: list[KaggleFileInfo]
+
+
+class KaggleImageResponse(BaseModel):
+    image_base64: str
+    mime: str = "image/png"
+    width: int
+    height: int
+    path: str
+
+
+class KaggleDatasetSummary(BaseModel):
+    ref: str = Field(..., description='"owner/name" slug')
+    title: str
+    subtitle: str = ""
+    last_updated: str = ""
+    download_count: int = 0
+    vote_count: int = 0
+    url: str = ""
+
+
+class KaggleSearchResponse(BaseModel):
+    query: str
+    datasets: list[KaggleDatasetSummary]

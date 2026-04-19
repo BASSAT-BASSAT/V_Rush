@@ -1,4 +1,13 @@
-import type { OpInfo, ProcessResponse } from '../types/cv'
+import type {
+  KaggleCreds,
+  KaggleFileListResponse,
+  KaggleImageResponse,
+  KaggleSearchResponse,
+  MatchOptions,
+  MatchResponse,
+  OpInfo,
+  ProcessResponse,
+} from '../types/cv'
 
 const base = () => (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? ''
 
@@ -79,4 +88,91 @@ export async function processImage(
     throw new Error(`${base}${hint}`)
   }
   return res.json() as Promise<ProcessResponse>
+}
+
+// =========================
+// MATCHER ( /api/match )
+// =========================
+
+export async function matchImages(
+  imageA: File,
+  imageB: File,
+  options: MatchOptions,
+  accessToken?: string | null,
+): Promise<MatchResponse> {
+  const form = new FormData()
+  form.append('image_a', imageA)
+  form.append('image_b', imageB)
+  form.append('options', JSON.stringify(options))
+  const res = await fetch(`${base()}/api/match`, {
+    method: 'POST',
+    headers: authHeaders(accessToken),
+    body: form,
+  })
+  if (!res.ok) throw new Error(await readApiError(res, 'Failed to match images'))
+  return res.json() as Promise<MatchResponse>
+}
+
+// =========================
+// KAGGLE ( /api/kaggle/* )
+// =========================
+
+function kaggleHeaders(creds: KaggleCreds, accessToken?: string | null): HeadersInit {
+  const h: Record<string, string> = {
+    'X-Kaggle-Username': creds.username,
+    'X-Kaggle-Key': creds.key,
+  }
+  if (accessToken) h.Authorization = `Bearer ${accessToken}`
+  return h
+}
+
+export async function listKaggleFiles(
+  slug: string,
+  creds: KaggleCreds,
+  accessToken?: string | null,
+): Promise<KaggleFileListResponse> {
+  const [owner, name] = slug.split('/')
+  if (!owner || !name) {
+    throw new Error('Dataset slug must look like "owner/dataset-name".')
+  }
+  const url = `${base()}/api/kaggle/datasets/${encodeURIComponent(owner)}/${encodeURIComponent(name)}/files`
+  const res = await fetch(url, { headers: kaggleHeaders(creds, accessToken) })
+  if (!res.ok) throw new Error(await readApiError(res, 'Failed to list Kaggle files'))
+  return res.json() as Promise<KaggleFileListResponse>
+}
+
+export async function getKaggleFile(
+  slug: string,
+  path: string,
+  creds: KaggleCreds,
+  accessToken?: string | null,
+): Promise<KaggleImageResponse> {
+  const [owner, name] = slug.split('/')
+  if (!owner || !name) {
+    throw new Error('Dataset slug must look like "owner/dataset-name".')
+  }
+  const url = `${base()}/api/kaggle/datasets/${encodeURIComponent(owner)}/${encodeURIComponent(name)}/file?path=${encodeURIComponent(path)}`
+  const res = await fetch(url, { headers: kaggleHeaders(creds, accessToken) })
+  if (!res.ok) throw new Error(await readApiError(res, 'Failed to download Kaggle file'))
+  return res.json() as Promise<KaggleImageResponse>
+}
+
+export async function searchKaggleDatasets(
+  query: string,
+  creds: KaggleCreds,
+  page = 1,
+  accessToken?: string | null,
+): Promise<KaggleSearchResponse> {
+  const url = `${base()}/api/kaggle/search?q=${encodeURIComponent(query)}&page=${page}`
+  const res = await fetch(url, { headers: kaggleHeaders(creds, accessToken) })
+  if (!res.ok) throw new Error(await readApiError(res, 'Failed to search Kaggle')) 
+  return res.json() as Promise<KaggleSearchResponse>
+}
+
+/** Convert a base64 image payload into a File for upload to /api/process or /api/match. */
+export function base64ToFile(base64: string, filename: string, mime = 'image/png'): File {
+  const bin = atob(base64)
+  const bytes = new Uint8Array(bin.length)
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i)
+  return new File([bytes], filename, { type: mime })
 }

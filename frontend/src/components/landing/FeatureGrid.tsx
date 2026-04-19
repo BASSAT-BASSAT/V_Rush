@@ -25,6 +25,13 @@ export function FeatureGrid() {
       icon: <IconTarget />,
     },
     {
+      title: 'Local feature matchers',
+      body:
+        'Drop two images, pick SIFT, ORB, AKAZE or BRISK, BF or FLANN matching with Lowe\u2019s ratio test, then watch RANSAC keep only the geometrically consistent inliers.',
+      accent: '#22d3ee',
+      icon: <IconLink />,
+    },
+    {
       title: 'Live pixel insights',
       body:
         'Before/after histograms for luma and each RGB channel, plus mean, std, and extrema. See what every operation actually did.',
@@ -101,6 +108,23 @@ function IconCode() {
         strokeWidth="1.7"
         strokeLinecap="round"
         strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+function IconLink() {
+  return (
+    <svg viewBox="0 0 24 24" width="28" height="28" fill="none" aria-hidden>
+      <circle cx="6.5" cy="7" r="1.6" fill="currentColor" />
+      <circle cx="6.5" cy="17" r="1.6" fill="currentColor" />
+      <circle cx="17.5" cy="6" r="1.6" fill="currentColor" />
+      <circle cx="17.5" cy="13" r="1.6" fill="currentColor" />
+      <circle cx="17.5" cy="19" r="1.6" fill="currentColor" />
+      <path
+        d="M6.5 7 17.5 13M6.5 17 17.5 6M6.5 17 17.5 19"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
       />
     </svg>
   )

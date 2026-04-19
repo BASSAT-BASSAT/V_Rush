@@ -16,6 +16,7 @@ export function StatsStrip({ opCount }: Props) {
       label: 'Categories',
       sub: 'Color, intensity, edges, morphology, texture, denoise, geometric, Fourier, segmentation…',
     },
+    { value: '4', label: 'Matchers', sub: 'SIFT · ORB · AKAZE · BRISK + RANSAC' },
     { value: '1-click', label: 'Runs', sub: 'Same pipeline, any image' },
     { value: '0', label: 'Setup', sub: 'Nothing to install, ever' },
   ]
