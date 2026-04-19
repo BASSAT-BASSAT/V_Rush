@@ -36,6 +36,7 @@ export function PipelinePage() {
   const [afterSrc, setAfterSrc] = useState<string | null>(null)
   const [copyNotice, setCopyNotice] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null)
   const [workspaceTab, setWorkspaceTab] = useState<WorkspaceTab>('ops')
+  const [flashKey, setFlashKey] = useState<string | null>(null)
   const [clientBeforeStats, setClientBeforeStats] = useState<ImageStats | null>(null)
   const [histogramOpen, setHistogramOpen] = useState<boolean>(() => {
     try {
@@ -115,15 +116,27 @@ export function PipelinePage() {
     return () => window.clearTimeout(t)
   }, [copyNotice])
 
+  // Clear the "just added" highlight after the flash animation has played.
+  useEffect(() => {
+    if (!flashKey) return
+    const t = window.setTimeout(() => setFlashKey(null), 1600)
+    return () => window.clearTimeout(t)
+  }, [flashKey])
+
   const addOp = useCallback((op: OpInfo) => {
+    const key = newKey()
     setSteps((prev) => [
       ...prev,
       {
-        key: newKey(),
+        key,
         op: op.id,
         paramsJson: JSON.stringify(op.default_params, null, 2),
       },
     ])
+    // Switch to the pipeline view so the user immediately sees the step they
+    // just added (instead of staying on the ops tab with no feedback).
+    setWorkspaceTab('pipeline')
+    setFlashKey(key)
   }, [])
 
   const parseSteps = useCallback(() => {
@@ -442,11 +455,19 @@ export function PipelinePage() {
               </button>
               <button
                 type="button"
-                className={`workspace-tabs__btn${workspaceTab === 'pipeline' ? ' workspace-tabs__btn--on' : ''}`}
+                className={`workspace-tabs__btn${workspaceTab === 'pipeline' ? ' workspace-tabs__btn--on' : ''}${
+                  flashKey && workspaceTab !== 'pipeline' ? ' workspace-tabs__btn--pulse' : ''
+                }`}
                 aria-pressed={workspaceTab === 'pipeline'}
                 onClick={() => setWorkspaceTab('pipeline')}
               >
                 Pipeline
+                <span
+                  className={`workspace-tabs__count${steps.length > 0 ? ' workspace-tabs__count--on' : ''}`}
+                  aria-label={`${steps.length} step${steps.length === 1 ? '' : 's'}`}
+                >
+                  {steps.length}
+                </span>
               </button>
             </div>
             {workspaceTab === 'ops' && ops.length > 0 && (
@@ -471,6 +492,7 @@ export function PipelinePage() {
                 <PipelineStack
                   steps={steps}
                   opsById={opsById}
+                  flashKey={flashKey}
                   onChangeParams={(key, json) => setSteps((prev) => prev.map((s) => (s.key === key ? { ...s, paramsJson: json } : s)))}
                   onRemove={(key) => setSteps((prev) => prev.filter((s) => s.key !== key))}
                   onMove={onMove}
@@ -478,6 +500,13 @@ export function PipelinePage() {
                   onDropOn={onDropOn}
                   dragKey={dragKey}
                 />
+                <button
+                  type="button"
+                  className="workspace-tabs__add-more"
+                  onClick={() => setWorkspaceTab('ops')}
+                >
+                  + Add another op
+                </button>
               </>
             )}
           </section>

@@ -12,6 +12,8 @@ interface Props {
   onDragStart: (key: string) => void
   onDropOn: (targetKey: string) => void
   dragKey: string | null
+  /** Step key to briefly highlight (e.g. when the user just added it). */
+  flashKey?: string | null
 }
 
 export function PipelineStack({
@@ -23,6 +25,7 @@ export function PipelineStack({
   onDragStart,
   onDropOn,
   dragKey,
+  flashKey,
 }: Props) {
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault()
@@ -32,16 +35,23 @@ export function PipelineStack({
   return (
     <div className="pipeline-stack">
       {steps.length === 0 && (
-        <p className="panel-hint">Use the <strong>Add ops</strong> tab to pick steps, then reorder and edit JSON here.</p>
+        <p className="panel-hint">Your pipeline is empty. Open the <strong>Add ops</strong> tab and click any operation &mdash; it will land here as the next step.</p>
       )}
       <ul className="pipeline-stack__list">
         {steps.map((s, idx) => {
           const meta = opsById.get(s.op)
           const help = meta?.param_help ?? {}
+          const classes = [
+            'pipeline-stack__item',
+            dragKey === s.key ? 'pipeline-stack__item--drag' : '',
+            flashKey === s.key ? 'pipeline-stack__item--flash' : '',
+          ]
+            .filter(Boolean)
+            .join(' ')
           return (
             <li
               key={s.key}
-              className={`pipeline-stack__item ${dragKey === s.key ? 'pipeline-stack__item--drag' : ''}`}
+              className={classes}
               draggable
               onDragStart={() => onDragStart(s.key)}
               onDragOver={handleDragOver}
