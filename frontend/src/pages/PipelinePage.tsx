@@ -13,6 +13,7 @@ import { HistogramPanel } from '../components/HistogramPanel'
 import { OpPalette } from '../components/OpPalette'
 import { PipelineStack } from '../components/PipelineStack'
 import { computeImageStats } from '../lib/imageStats'
+import { useWorkspace } from '../hooks/useWorkspace'
 import type { DetectionItem, ImageStats, OpInfo, PipelineStepUI, ProcessResponse } from '../types/cv'
 import type { AppLayoutOutlet } from '../types/layout'
 
@@ -27,7 +28,7 @@ export function PipelinePage() {
   const location = useLocation()
   const mode: 'classical' | 'ml' = location.pathname.startsWith('/lab') ? 'ml' : 'classical'
 
-  const [file, setFile] = useState<File | null>(null)
+  const { studioFile: file, setStudioFile: setFile } = useWorkspace()
   const [beforeUrl, setBeforeUrl] = useState<string | null>(null)
   const [steps, setSteps] = useState<PipelineStepUI[]>([])
   const [dragKey, setDragKey] = useState<string | null>(null)
@@ -317,13 +318,19 @@ export function PipelinePage() {
         </aside>
 
         <main className="app__col app__col--main">
-          <section className="dock-panel dock-panel--main">
+          <section className={`dock-panel dock-panel--main${loadingRun ? ' dock-panel--scanning' : ''}`}>
             <h2 className="dock-panel__title dock-panel__title--center">
               <span className="dock-panel__dot dock-panel__dot--violet" />
               Preview
             </h2>
             <div className="pipeline-page__meta">
               <span className="chip">{steps.length} steps</span>
+              {loadingRun && (
+                <span className="chip chip--accent pipeline-page__running" role="status">
+                  <span className="pipeline-page__running-dot" aria-hidden />
+                  Running pipeline…
+                </span>
+              )}
             </div>
             <BeforeAfter
               beforeUrl={beforeUrl}
@@ -358,7 +365,12 @@ export function PipelinePage() {
             )}
 
             <div className="toolbar toolbar--primary">
-              <button type="button" className="btn btn--primary" disabled={!file || loadingRun} onClick={() => void run()}>
+              <button
+                type="button"
+                className={`btn btn--primary${loadingRun ? ' btn--loading' : ''}`}
+                disabled={!file || loadingRun}
+                onClick={() => void run()}
+              >
                 {loadingRun ? 'Running…' : 'Run pipeline'}
               </button>
               <button type="button" className="btn" disabled={steps.length === 0} onClick={() => setSteps([])}>

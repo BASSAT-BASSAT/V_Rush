@@ -304,7 +304,7 @@ export function BeforeAfter({ beforeUrl, afterSrc, lastKind, samStep }: Props) {
             <figure>
               <figcaption>After</figcaption>
               {afterSrc ? (
-                <div className="before-after__img-wrap">
+                <div className="before-after__img-wrap before-after__img-wrap--reveal" key={afterSrc}>
                   <img src={afterSrc} alt="Processed" />
                 </div>
               ) : (

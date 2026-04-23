@@ -1,4 +1,5 @@
 import type { ReactElement, ReactNode } from 'react'
+import { useReveal } from '../../hooks/useReveal'
 
 interface ShowcaseItem {
   label: string
@@ -42,34 +43,49 @@ export function ShowcaseGallery() {
     },
   ]
 
-  return (
-    <section className="landing-showcase" aria-labelledby="show-h">
-      <h2 id="show-h" className="landing-section-title">
-        See the operations in action.
-      </h2>
-      <p className="landing-section-sub">
-        Every op ships with a live preview and the exact OpenCV or ONNX call underneath.
-      </p>
+  const renderCard = (it: ShowcaseItem, key: string) => (
+    <article key={key} className="landing-showcase__card">
+      <div className="landing-showcase__pair">
+        <div className="landing-showcase__img landing-showcase__img--before">
+          {it.before}
+          <span className="landing-showcase__tag">Before</span>
+        </div>
+        <div className="landing-showcase__img landing-showcase__img--after">
+          {it.after}
+          <span className="landing-showcase__tag landing-showcase__tag--after">After</span>
+        </div>
+      </div>
+      <div className="landing-showcase__meta">
+        <span className="landing-showcase__label">{it.label}</span>
+        <code className="landing-showcase__op">{it.op}</code>
+      </div>
+    </article>
+  )
 
-      <div className="landing-showcase__grid">
-        {items.map((it) => (
-          <article key={it.op} className="landing-showcase__card">
-            <div className="landing-showcase__pair">
-              <div className="landing-showcase__img landing-showcase__img--before">
-                {it.before}
-                <span className="landing-showcase__tag">Before</span>
-              </div>
-              <div className="landing-showcase__img landing-showcase__img--after">
-                {it.after}
-                <span className="landing-showcase__tag landing-showcase__tag--after">After</span>
-              </div>
-            </div>
-            <div className="landing-showcase__meta">
-              <span className="landing-showcase__label">{it.label}</span>
-              <code className="landing-showcase__op">{it.op}</code>
-            </div>
-          </article>
-        ))}
+  const sectionRef = useReveal<HTMLElement>({ threshold: 0.15 })
+
+  return (
+    <section ref={sectionRef} className="landing-showcase reveal reveal--up" aria-labelledby="show-h">
+      <h2 id="show-h" className="landing-section-title landing-showcase__title">
+        Every op. <span className="landing-showcase__title-accent">One rush.</span>
+      </h2>
+
+      <div
+        className="landing-showcase__marquee"
+        role="region"
+        aria-label="Vision operations carousel"
+      >
+        <div className="landing-showcase__marquee-fade landing-showcase__marquee-fade--left" aria-hidden />
+        <div className="landing-showcase__marquee-fade landing-showcase__marquee-fade--right" aria-hidden />
+
+        <div className="landing-showcase__track">
+          <div className="landing-showcase__set">
+            {items.map((it) => renderCard(it, it.op))}
+          </div>
+          <div className="landing-showcase__set" aria-hidden="true">
+            {items.map((it) => renderCard(it, `${it.op}-dup`))}
+          </div>
+        </div>
       </div>
     </section>
   )

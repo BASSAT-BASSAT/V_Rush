@@ -8,7 +8,7 @@ export function Hero() {
         <span className="landing-hero__eyebrow">Classical · Deep · Matcher</span>
         <h1 className="landing-hero__title">
           The visual workbench for<br />
-          <span className="landing-hero__grad">computer vision pipelines.</span>
+          <span className="landing-hero__grad landing-hero__grad--shimmer">computer vision pipelines.</span>
         </h1>
         <p className="landing-hero__lede">
           Stack OpenCV ops and run YOLO&nbsp;+&nbsp;MobileSAM in the Studio, or line up two
@@ -110,6 +110,8 @@ function HeroMock() {
         return (
           <rect
             key={i}
+            className="hero-hist-bar"
+            style={{ ['--i' as string]: i }}
             x={424 + i * 4.5}
             y={230 - h}
             width="3.2"
@@ -126,6 +128,8 @@ function HeroMock() {
         return (
           <rect
             key={i}
+            className="hero-hist-bar hero-hist-bar--alt"
+            style={{ ['--i' as string]: i }}
             x={424 + i * 4.5}
             y={336 - h}
             width="3.2"

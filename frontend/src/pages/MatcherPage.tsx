@@ -12,6 +12,8 @@ import type {
   PreloadedPairState,
 } from '../types/cv'
 import type { AppLayoutOutlet } from '../types/layout'
+import { useWorkspace } from '../hooks/useWorkspace'
+import { useCountUp } from '../hooks/useCountUp'
 
 const FALLBACK_ALGOS: MatcherAlgoInfo[] = [
   {
@@ -148,11 +150,44 @@ const DEFAULT_OPTS: MatchOptions = {
 type Slot = 'A' | 'B'
 type ResultTab = 'matches' | 'overlay'
 
-function StatCard({ label, value, hint }: { label: string; value: string; hint?: string }) {
+interface StatCardProps {
+  label: string
+  /** Either a raw number (animated count-up) or a preformatted string. */
+  value: number | string
+  /** If `value` is a number, how many decimals to show while counting. */
+  decimals?: number
+  /** Optional suffix appended to the animated number (e.g. "%"). */
+  suffix?: string
+  hint?: string
+  /** Staggered reveal index. */
+  index?: number
+}
+
+function StatCard({ label, value, decimals = 0, suffix = '', hint, index = 0 }: StatCardProps) {
+  const isNumeric = typeof value === 'number'
+  const animated = useCountUp(isNumeric ? value : 0, {
+    enabled: isNumeric,
+    duration: 900,
+  })
+  const display = isNumeric
+    ? decimals > 0
+      ? animated.toLocaleString(undefined, {
+          minimumFractionDigits: decimals,
+          maximumFractionDigits: decimals,
+        })
+      : animated.toLocaleString()
+    : value
+
   return (
-    <div className="matcher__stat">
+    <div
+      className="matcher__stat matcher__stat--reveal"
+      style={{ ['--reveal-delay' as string]: `${index * 70}ms` }}
+    >
       <span className="matcher__stat-label">{label}</span>
-      <span className="matcher__stat-value">{value}</span>
+      <span className="matcher__stat-value">
+        {display}
+        {isNumeric && suffix ? suffix : ''}
+      </span>
       {hint && <span className="matcher__stat-hint">{hint}</span>}
     </div>
   )
@@ -177,8 +212,12 @@ export function MatcherPage() {
   const { accessToken } = useOutletContext<AppLayoutOutlet>()
   const location = useLocation()
 
-  const [fileA, setFileA] = useState<File | null>(null)
-  const [fileB, setFileB] = useState<File | null>(null)
+  const {
+    matcherFileA: fileA,
+    setMatcherFileA: setFileA,
+    matcherFileB: fileB,
+    setMatcherFileB: setFileB,
+  } = useWorkspace()
   const [previewA, setPreviewA] = useState<string | null>(null)
   const [previewB, setPreviewB] = useState<string | null>(null)
 
@@ -549,7 +588,7 @@ export function MatcherPage() {
         <div className="matcher__actions">
           <button
             type="button"
-            className="btn btn--primary btn--lg"
+            className={`btn btn--primary btn--lg${loading ? ' btn--loading' : ''}`}
             disabled={!fileA || !fileB || loading}
             onClick={() => void run()}
           >
@@ -623,28 +662,37 @@ export function MatcherPage() {
 
           <div className="matcher__stats">
             <StatCard
+              index={0}
               label="Keypoints A"
-              value={result.stats.keypoints_a.toLocaleString()}
+              value={result.stats.keypoints_a}
               hint={`Algo · ${result.stats.algo.toUpperCase()}`}
             />
-            <StatCard label="Keypoints B" value={result.stats.keypoints_b.toLocaleString()} />
-            <StatCard label="Raw pairs" value={result.stats.raw_matches.toLocaleString()} />
+            <StatCard index={1} label="Keypoints B" value={result.stats.keypoints_b} />
+            <StatCard index={2} label="Raw pairs" value={result.stats.raw_matches} />
             <StatCard
+              index={3}
               label="Good matches"
-              value={result.stats.good_matches.toLocaleString()}
+              value={result.stats.good_matches}
               hint={`Matcher · ${result.stats.matcher.toUpperCase()}`}
             />
             <StatCard
+              index={4}
               label="RANSAC inliers"
-              value={`${result.stats.inliers.toLocaleString()}`}
+              value={result.stats.inliers}
               hint={`${(result.stats.inlier_ratio * 100).toFixed(1)}% of good`}
             />
             <StatCard
+              index={5}
               label="Avg distance"
-              value={result.stats.avg_distance.toFixed(2)}
+              value={result.stats.avg_distance}
+              decimals={2}
               hint={algoIsBinary ? 'Hamming bits' : 'L2 norm'}
             />
-            <StatCard label="Compute time" value={`${result.stats.elapsed_ms.toFixed(1)} ms`} />
+            <StatCard
+              index={6}
+              label="Compute time"
+              value={`${result.stats.elapsed_ms.toFixed(1)} ms`}
+            />
           </div>
 
           {result.homography && (

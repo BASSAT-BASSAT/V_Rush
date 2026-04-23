@@ -1,4 +1,5 @@
-import type { ReactElement } from 'react'
+import type { MouseEvent, ReactElement } from 'react'
+import { useReveal } from '../../hooks/useReveal'
 
 interface Feature {
   title: string
@@ -47,19 +48,37 @@ export function FeatureGrid() {
     },
   ]
 
+  const sectionRef = useReveal<HTMLElement>({ threshold: 0.18 })
+
+  const handleMove = (e: MouseEvent<HTMLElement>) => {
+    const card = e.currentTarget
+    const rect = card.getBoundingClientRect()
+    card.style.setProperty('--mx', `${e.clientX - rect.left}px`)
+    card.style.setProperty('--my', `${e.clientY - rect.top}px`)
+  }
+
   return (
-    <section className="landing-features" aria-labelledby="feat-h">
-      <h2 id="feat-h" className="landing-section-title">
+    <section ref={sectionRef} className="landing-features reveal reveal--up" aria-labelledby="feat-h">
+      <h2 id="feat-h" className="landing-section-title reveal reveal--up">
         Everything a vision course teaches, on one page.
       </h2>
-      <p className="landing-section-sub">
+      <p className="landing-section-sub reveal reveal--up" style={{ ['--reveal-delay' as string]: '80ms' }}>
         From pixel-level filters to foundation-model cutouts — V-Rush keeps the workflow fast,
         tactile, and transparent.
       </p>
 
       <div className="landing-features__grid">
-        {features.map((f) => (
-          <article key={f.title} className="landing-feature" style={{ ['--accent' as string]: f.accent }}>
+        {features.map((f, i) => (
+          <article
+            key={f.title}
+            className="landing-feature reveal reveal--up"
+            style={{
+              ['--accent' as string]: f.accent,
+              ['--reveal-delay' as string]: `${120 + i * 90}ms`,
+            }}
+            onMouseMove={handleMove}
+          >
+            <span className="landing-feature__spotlight" aria-hidden />
             <div className="landing-feature__icon">{f.icon}</div>
             <h3 className="landing-feature__title">{f.title}</h3>
             <p className="landing-feature__body">{f.body}</p>
