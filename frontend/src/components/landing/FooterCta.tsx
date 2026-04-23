@@ -1,11 +1,10 @@
 import { Link } from 'react-router-dom'
-import { useReveal } from '../../hooks/useReveal'
+import { MotionReveal } from '../../motion'
 
 /** Final CTA card: spend less time wiring, more time experimenting. */
 export function FooterCta() {
-  const sectionRef = useReveal<HTMLElement>({ threshold: 0.2 })
   return (
-    <section ref={sectionRef} className="landing-cta reveal reveal--up">
+    <MotionReveal as="section" className="landing-cta" amount={0.2}>
       <div className="landing-cta__panel">
         <h2 className="landing-cta__title">Two ways in. One vision toolkit.</h2>
         <div className="landing-cta__row">
@@ -20,6 +19,6 @@ export function FooterCta() {
           </Link>
         </div>
       </div>
-    </section>
+    </MotionReveal>
   )
 }

@@ -1,9 +1,28 @@
-import { Link } from 'react-router-dom'
+import { useRef } from 'react'
+import {
+  motion,
+  useReducedMotion,
+  useScroll,
+  useSpring,
+  useTransform,
+} from 'motion/react'
+import { MagneticLink } from './MagneticLink'
 
 /** Big landing hero with gradient headline, tagline, dual CTA, and a faux pipeline preview. */
 export function Hero() {
+  const reduced = useReducedMotion()
+  const heroRef = useRef<HTMLElement | null>(null)
+  const { scrollYProgress } = useScroll({
+    target: heroRef,
+    offset: ['start start', 'end start'],
+  })
+  const rawY = useTransform(scrollYProgress, [0, 1], [0, -90])
+  const mockY = useSpring(rawY, { stiffness: 90, damping: 22, mass: 0.5 })
+  const rawTilt = useTransform(scrollYProgress, [0, 1], [0, -2])
+  const mockTilt = useSpring(rawTilt, { stiffness: 120, damping: 20 })
+
   return (
-    <section className="landing-hero">
+    <section className="landing-hero" ref={heroRef}>
       <div className="landing-hero__content">
         <span className="landing-hero__eyebrow">Classical · Deep · Matcher</span>
         <h1 className="landing-hero__title">
@@ -17,15 +36,15 @@ export function Hero() {
           live pixel-value histograms for every step.
         </p>
         <div className="landing-hero__cta-row">
-          <Link to="/studio" className="btn btn--primary btn--lg">
+          <MagneticLink to="/studio" className="btn btn--primary btn--lg">
             Open the Studio
-          </Link>
-          <Link to="/match" className="btn btn--ghost btn--lg">
+          </MagneticLink>
+          <MagneticLink to="/match" className="btn btn--ghost btn--lg">
             Try the Matcher
-          </Link>
-          <Link to="/reference" className="btn btn--ghost btn--lg">
+          </MagneticLink>
+          <MagneticLink to="/reference" className="btn btn--ghost btn--lg">
             Browse operations
-          </Link>
+          </MagneticLink>
         </div>
         <ul className="landing-hero__chips" aria-label="Highlights">
           <li className="chip chip--accent">ONNX YOLOv26</li>
@@ -36,12 +55,17 @@ export function Hero() {
         </ul>
       </div>
 
-      <div className="landing-hero__visual" aria-hidden>
+      <motion.div
+        className="landing-hero__visual"
+        aria-hidden
+        style={reduced ? undefined : { y: mockY, rotate: mockTilt }}
+      >
         <HeroMock />
-      </div>
+      </motion.div>
     </section>
   )
 }
+
 
 /**
  * Inline SVG "app screenshot" — no binary assets required.

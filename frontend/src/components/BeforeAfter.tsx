@@ -6,6 +6,7 @@ import {
   type SamOutputMode,
   type SamPromptType,
 } from '../lib/samParams'
+import { ZoomableFrame } from './ZoomableFrame'
 
 export interface SamStepHandle {
   /** Index shown to the user ("Editing step N"). 1-based. */
@@ -287,26 +288,34 @@ export function BeforeAfter({ beforeUrl, afterSrc, lastKind, samStep }: Props) {
               <figcaption>
                 Before {samActive && <span className="before-after__sam-hint">(click / drag to prompt SAM)</span>}
               </figcaption>
-              <div
-                ref={samActive ? frameRef : undefined}
-                className={`before-after__img-wrap${
-                  samActive ? ` before-after__img-wrap--sam before-after__img-wrap--sam-${sam?.prompt_type ?? 'point'}` : ''
-                }`}
-                onPointerDown={samActive ? onPointerDown : undefined}
-                onPointerMove={samActive ? onPointerMove : undefined}
-                onPointerUp={samActive ? onPointerUp : undefined}
-                onPointerCancel={samActive ? onPointerCancel : undefined}
-              >
-                <img src={beforeUrl} alt="Original" draggable={false} />
-                {renderSamOverlay()}
-              </div>
+              {samActive ? (
+                <div
+                  ref={frameRef}
+                  className={`before-after__img-wrap before-after__img-wrap--sam before-after__img-wrap--sam-${sam?.prompt_type ?? 'point'}`}
+                  onPointerDown={onPointerDown}
+                  onPointerMove={onPointerMove}
+                  onPointerUp={onPointerUp}
+                  onPointerCancel={onPointerCancel}
+                >
+                  <img src={beforeUrl} alt="Original" draggable={false} />
+                  {renderSamOverlay()}
+                </div>
+              ) : (
+                <ZoomableFrame className="before-after__zoom">
+                  <div className="before-after__img-wrap">
+                    <img src={beforeUrl} alt="Original" draggable={false} />
+                  </div>
+                </ZoomableFrame>
+              )}
             </figure>
             <figure>
               <figcaption>After</figcaption>
               {afterSrc ? (
-                <div className="before-after__img-wrap before-after__img-wrap--reveal" key={afterSrc}>
-                  <img src={afterSrc} alt="Processed" />
-                </div>
+                <ZoomableFrame className="before-after__zoom" key={afterSrc}>
+                  <div className="before-after__img-wrap before-after__img-wrap--reveal">
+                    <img src={afterSrc} alt="Processed" />
+                  </div>
+                </ZoomableFrame>
               ) : (
                 <div className="before-after__placeholder">Run pipeline</div>
               )}

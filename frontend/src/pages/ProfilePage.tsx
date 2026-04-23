@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getSupabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
+import { MotionToast } from '../motion'
 
 type ProfileRow = {
   id: string
@@ -142,8 +143,12 @@ export function ProfilePage() {
         </div>
       </section>
 
-      {error && <div className="banner banner--error profile-page__banner">{error}</div>}
-      {message && <div className="banner banner--ok profile-page__banner">{message}</div>}
+      <MotionToast show={Boolean(error)} kind="error" className="profile-page__banner">
+        {error}
+      </MotionToast>
+      <MotionToast show={Boolean(message)} kind="ok" className="profile-page__banner">
+        {message}
+      </MotionToast>
 
       <section className="profile-page__card" aria-labelledby="profile-account-title">
         <header className="profile-page__card-head">

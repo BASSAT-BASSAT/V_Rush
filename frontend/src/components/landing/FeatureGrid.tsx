@@ -1,5 +1,19 @@
 import type { MouseEvent, ReactElement } from 'react'
-import { useReveal } from '../../hooks/useReveal'
+import { motion, useReducedMotion } from 'motion/react'
+
+const PARENT_VARIANTS = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.09, delayChildren: 0.1 } },
+}
+
+const CHILD_VARIANTS = {
+  hidden: { opacity: 0, y: 22 },
+  show: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.55, ease: [0.16, 0.84, 0.32, 1] as [number, number, number, number] },
+  },
+}
 
 interface Feature {
   title: string
@@ -48,7 +62,7 @@ export function FeatureGrid() {
     },
   ]
 
-  const sectionRef = useReveal<HTMLElement>({ threshold: 0.18 })
+  const reduced = useReducedMotion()
 
   const handleMove = (e: MouseEvent<HTMLElement>) => {
     const card = e.currentTarget
@@ -58,34 +72,47 @@ export function FeatureGrid() {
   }
 
   return (
-    <section ref={sectionRef} className="landing-features reveal reveal--up" aria-labelledby="feat-h">
-      <h2 id="feat-h" className="landing-section-title reveal reveal--up">
-        Everything a vision course teaches, on one page.
-      </h2>
-      <p className="landing-section-sub reveal reveal--up" style={{ ['--reveal-delay' as string]: '80ms' }}>
-        From pixel-level filters to foundation-model cutouts — V-Rush keeps the workflow fast,
-        tactile, and transparent.
-      </p>
+    <motion.section
+      className="landing-features"
+      aria-labelledby="feat-h"
+      variants={reduced ? undefined : PARENT_VARIANTS}
+      initial="hidden"
+      whileInView="show"
+      viewport={{ once: true, amount: 0.18 }}
+    >
+      <motion.h2
+        id="feat-h"
+        className="landing-section-title"
+        variants={reduced ? undefined : CHILD_VARIANTS}
+      >
+        Every op a CV engineer reaches for, in one workbench.
+      </motion.h2>
+      <motion.p
+        className="landing-section-sub"
+        variants={reduced ? undefined : CHILD_VARIANTS}
+      >
+        From pixel-level filters to foundation-model cutouts — skip the boilerplate and keep the
+        experiments tactile, reproducible, and ready to ship.
+      </motion.p>
 
       <div className="landing-features__grid">
-        {features.map((f, i) => (
-          <article
+        {features.map((f) => (
+          <motion.article
             key={f.title}
-            className="landing-feature reveal reveal--up"
-            style={{
-              ['--accent' as string]: f.accent,
-              ['--reveal-delay' as string]: `${120 + i * 90}ms`,
-            }}
+            className="landing-feature"
+            style={{ ['--accent' as string]: f.accent }}
             onMouseMove={handleMove}
+            variants={reduced ? undefined : CHILD_VARIANTS}
+            whileHover={reduced ? undefined : { y: -4 }}
           >
             <span className="landing-feature__spotlight" aria-hidden />
             <div className="landing-feature__icon">{f.icon}</div>
             <h3 className="landing-feature__title">{f.title}</h3>
             <p className="landing-feature__body">{f.body}</p>
-          </article>
+          </motion.article>
         ))}
       </div>
-    </section>
+    </motion.section>
   )
 }
 

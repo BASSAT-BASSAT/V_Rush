@@ -403,6 +403,306 @@
   text-underline-offset: 3px;
 }
 
+/* =====================================================================
+   Dataset tray — folder / multi-image upload, shared across Studio/Matcher
+   ===================================================================== */
+.dataset-tray {
+  border: 1px solid var(--kl-border);
+  border-radius: var(--kl-radius);
+  padding: 0.65rem 0.75rem 0.75rem;
+  background: linear-gradient(180deg, rgba(16, 18, 28, 0.55) 0%, rgba(16, 18, 28, 0.15) 100%);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  margin-top: 0.25rem;
+}
+
+.dataset-tray--drag {
+  border-color: var(--kl-accent, #6c5ce7);
+  box-shadow: 0 0 0 2px rgba(108, 92, 231, 0.25), var(--kl-shadow-glow);
+}
+
+.dataset-tray--disabled {
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.dataset-tray__head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.dataset-tray__title {
+  all: unset;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--kl-text);
+  font-weight: 600;
+  font-size: 0.88rem;
+  padding: 0.25rem 0.35rem;
+  border-radius: 6px;
+}
+
+.dataset-tray__title:hover,
+.dataset-tray__title:focus-visible {
+  background: rgba(255, 255, 255, 0.04);
+  outline: none;
+}
+
+.dataset-tray__chevron {
+  display: inline-block;
+  font-size: 0.72rem;
+  color: var(--kl-text-muted);
+  width: 0.9rem;
+  text-align: center;
+}
+
+.dataset-tray__title-text {
+  letter-spacing: 0.01em;
+}
+
+.dataset-tray__actions {
+  margin-left: auto;
+  display: inline-flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.dataset-tray__clear {
+  color: var(--kl-danger, #f87171);
+}
+
+.dataset-tray__status {
+  margin: 0.35rem 0 0;
+  font-size: 0.78rem;
+  color: var(--kl-text-muted);
+}
+
+.dataset-tray__zone {
+  margin-top: 0.5rem;
+  border: 1px dashed var(--kl-border);
+  border-radius: calc(var(--kl-radius) - 4px);
+  padding: 0.6rem;
+  min-height: 104px;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.dataset-tray--drag .dataset-tray__zone {
+  border-color: var(--kl-accent, #6c5ce7);
+  background: rgba(108, 92, 231, 0.08);
+}
+
+.dataset-tray__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 1rem 0.5rem;
+  color: var(--kl-text-muted);
+}
+
+.dataset-tray__empty-lead {
+  margin: 0 0 0.25rem;
+  font-size: 0.88rem;
+  color: var(--kl-text);
+}
+
+.dataset-tray__empty-sub {
+  margin: 0;
+  font-size: 0.78rem;
+}
+
+/* Breadcrumb bar tightens spacing vs the full-page Kaggle browser. */
+.dataset-tray__crumbs {
+  margin: 0 0 0.6rem;
+  padding: 0.35rem 0.55rem;
+  font-size: 0.75rem;
+}
+
+/* Tray grid uses tighter columns than DatasetsPage so it fits in a side panel. */
+.dataset-tray__grid {
+  grid-template-columns: repeat(auto-fill, minmax(128px, 1fr));
+  gap: 0.5rem;
+}
+
+.dataset-tray__file {
+  padding: 0.45rem;
+  gap: 0.3rem;
+}
+
+.dataset-tray__file-thumb-wrap {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #0b0d13;
+  border: 1px solid var(--kl-border);
+}
+
+.dataset-tray__file-thumb {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.dataset-tray__file-flag {
+  position: absolute;
+  top: 0.3rem;
+  left: 0.3rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  backdrop-filter: blur(6px);
+}
+
+.datasets__file--slot-a .dataset-tray__file-flag {
+  background: rgba(22, 78, 99, 0.85);
+  color: #a5f3fc;
+}
+
+.datasets__file--slot-b .dataset-tray__file-flag {
+  background: rgba(131, 24, 67, 0.85);
+  color: #fbcfe8;
+}
+
+.dataset-tray__file .datasets__file-name {
+  font-size: 0.74rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+}
+
+.dataset-tray__file .datasets__file-size {
+  font-size: 0.66rem;
+}
+
+.dataset-tray__file .datasets__file-badge {
+  top: 0.35rem;
+  right: 0.35rem;
+  font-size: 0.52rem;
+  padding: 0.08rem 0.35rem;
+}
+
+.dataset-tray__file-split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.25rem;
+  margin-top: 0.15rem;
+}
+
+.dataset-tray__slot {
+  all: unset;
+  cursor: pointer;
+  text-align: center;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.2rem 0.35rem;
+  border-radius: 6px;
+  border: 1px solid var(--kl-border);
+  color: var(--kl-text);
+  background: rgba(255, 255, 255, 0.03);
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.dataset-tray__slot:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.dataset-tray__slot--a:hover {
+  border-color: rgba(34, 211, 238, 0.85);
+  color: #67e8f9;
+}
+
+.dataset-tray__slot--b:hover {
+  border-color: rgba(244, 114, 182, 0.85);
+  color: #f9a8d4;
+}
+
+.dataset-tray__slot--a.dataset-tray__slot--on {
+  background: linear-gradient(135deg, #22d3ee, #0891b2);
+  border-color: #22d3ee;
+  color: #06121a;
+}
+
+.dataset-tray__slot--b.dataset-tray__slot--on {
+  background: linear-gradient(135deg, #f472b6, #be185d);
+  border-color: #f472b6;
+  color: #06121a;
+}
+
+.dataset-tray__slot[disabled] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.dataset-tray__file-remove {
+  position: absolute;
+  top: 0.3rem;
+  right: 0.3rem;
+  z-index: 2;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: 0.9rem;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+}
+
+/* The badge and the × button share the top-right corner; when the × is
+   visible we want it on top, so the badge slides down when hovering. */
+.dataset-tray__file:hover .datasets__file-badge {
+  transform: translateY(22px);
+  transition: transform 0.15s ease;
+}
+
+.dataset-tray__file:hover .dataset-tray__file-remove,
+.dataset-tray__file-remove:focus-visible {
+  opacity: 1;
+}
+
+.dataset-tray__file-remove:hover {
+  background: #dc2626;
+  border-color: #dc2626;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dataset-tray,
+  .dataset-tray__zone,
+  .dataset-tray__slot {
+    transition: none;
+  }
+  .dataset-tray__file:hover .datasets__file-badge {
+    transform: none;
+    transition: none;
+  }
+}
+
+/* Inline "Clear source" button living inside a dock-panel title row. */
+.dock-panel__title-action {
+  margin-left: auto;
+  font-weight: 500;
+  font-size: 0.72rem !important;
+  letter-spacing: 0.02em;
+}
+
 /* —— Op palette —— */
 .op-palette__field {
   display: flex;
@@ -1240,9 +1540,10 @@
   background: var(--kl-bg-elevated);
 }
 
-/* Flash highlight + slide-in on a freshly-added pipeline step. */
+/* Flash highlight on a freshly-added pipeline step. The slide-in is now
+   handled by Reorder.Item / motion variants in PipelineStack.tsx. */
 .pipeline-stack__item--flash {
-  animation: vrush-step-flash 1.4s ease-out 1, vrush-step-land 480ms cubic-bezier(0.22, 1, 0.36, 1) 1;
+  animation: vrush-step-flash 1.4s ease-out 1;
 }
 
 @keyframes vrush-step-flash {
@@ -1257,26 +1558,156 @@
   }
 }
 
-@keyframes vrush-step-land {
-  0% {
-    opacity: 0;
-    transform: translate3d(18px, -4px, 0) scale(0.97);
-  }
-  60% {
-    opacity: 1;
-    transform: translate3d(0, 2px, 0) scale(1.01);
-  }
-  100% {
-    opacity: 1;
-    transform: translate3d(0, 0, 0) scale(1);
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
   .workspace-tabs__btn--pulse,
   .pipeline-stack__item--flash {
     animation: none;
   }
+}
+
+/* —— Running step (decorative) —— */
+.pipeline-stack__item--running {
+  position: relative;
+  z-index: 1;
+}
+
+.pipeline-stack__item--running::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: calc(var(--kl-radius-sm) + 2px);
+  pointer-events: none;
+  background: linear-gradient(
+    120deg,
+    rgba(124, 58, 237, 0.55),
+    rgba(34, 211, 238, 0.45),
+    rgba(124, 58, 237, 0.55)
+  );
+  background-size: 200% 200%;
+  filter: blur(0.5px);
+  opacity: 0.9;
+  animation: vrush-step-glow 1.6s ease-in-out infinite;
+  z-index: -1;
+  -webkit-mask: linear-gradient(#000, #000) content-box, linear-gradient(#000, #000);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+  padding: 2px;
+}
+
+@keyframes vrush-step-glow {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pipeline-stack__item--running::before {
+    animation: none;
+  }
+}
+
+/* —— Zoomable preview frame —— */
+.zoom-frame {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--kl-radius-sm, 10px);
+  background: rgba(0, 0, 0, 0.18);
+  cursor: grab;
+  touch-action: none;
+}
+
+.zoom-frame:active {
+  cursor: grabbing;
+}
+
+.zoom-frame--off {
+  position: relative;
+}
+
+.zoom-frame__inner {
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform-origin: center;
+  will-change: transform;
+}
+
+.zoom-frame__inner > * {
+  pointer-events: none;
+}
+
+.zoom-frame__inner img {
+  display: block;
+  width: 100%;
+  height: auto;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.zoom-frame__reset {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  padding: 0.28rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(15, 23, 42, 0.7);
+  color: #e2e8f0;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  opacity: 0;
+  transform: translateY(-4px);
+  transition: opacity 0.18s ease, transform 0.18s ease, background 0.18s ease;
+  backdrop-filter: blur(6px);
+}
+
+.zoom-frame:hover .zoom-frame__reset,
+.zoom-frame:focus-within .zoom-frame__reset {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.zoom-frame__reset:hover {
+  background: rgba(124, 58, 237, 0.6);
+  border-color: rgba(196, 181, 253, 0.6);
+}
+
+/* —— Fly-to-stack ghost —— */
+.fly-to-stack {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 60;
+}
+
+.fly-to-stack__ghost {
+  position: fixed;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 0.85rem;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(124, 58, 237, 0.95), rgba(34, 211, 238, 0.85));
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.78rem;
+  letter-spacing: 0.01em;
+  box-shadow: 0 18px 40px -10px rgba(124, 58, 237, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.18) inset;
+  pointer-events: none;
+  will-change: left, top, width, height, transform, opacity;
+}
+
+.fly-to-stack__label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
 }
 
 /* —— Export menu —— */
@@ -2438,6 +2869,89 @@
   gap: 3.5rem;
 }
 
+/* =====================================================================
+   App-wide wave signal backdrop — sits behind every route.
+   ===================================================================== */
+.wave-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+  contain: layout paint;
+}
+
+.wave-backdrop__viewport {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  /* Drift the whole signal vertically for a slow ambient flow. */
+  animation: wave-drift 18s ease-in-out infinite alternate;
+}
+
+.wave-backdrop__svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  filter: drop-shadow(0 0 14px rgba(124, 58, 237, 0.25));
+}
+
+.wave-backdrop__layer {
+  animation: wave-scroll linear infinite;
+  transform-origin: 0 0;
+  will-change: transform;
+}
+
+.wave-backdrop__scan {
+  animation: wave-scan 9s linear infinite;
+  transform-origin: 0 0;
+  filter: drop-shadow(0 0 6px rgba(167, 139, 250, 0.6));
+}
+
+.wave-backdrop__vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(80% 55% at 50% 45%, transparent 0%, transparent 55%, rgba(3, 6, 23, 0.55) 100%),
+    linear-gradient(180deg, rgba(3, 6, 23, 0.55) 0%, transparent 18%, transparent 82%, rgba(3, 6, 23, 0.7) 100%);
+}
+
+@keyframes wave-scroll {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-1200px); }
+}
+
+@keyframes wave-scan {
+  0%   { transform: translateX(-40px); opacity: 0; }
+  6%   { opacity: 0.45; }
+  92%  { opacity: 0.35; }
+  100% { transform: translateX(1260px); opacity: 0; }
+}
+
+@keyframes wave-drift {
+  from { transform: translateY(-8px); }
+  to   { transform: translateY(8px); }
+}
+
+[data-theme='light'] .wave-backdrop__vignette {
+  background:
+    radial-gradient(80% 55% at 50% 45%, transparent 0%, transparent 55%, rgba(248, 250, 255, 0.55) 100%),
+    linear-gradient(180deg, rgba(248, 250, 255, 0.45) 0%, transparent 18%, transparent 82%, rgba(248, 250, 255, 0.65) 100%);
+}
+
+[data-theme='light'] .wave-backdrop__svg {
+  opacity: 0.7;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wave-backdrop__layer,
+  .wave-backdrop__scan,
+  .wave-backdrop__viewport {
+    animation: none !important;
+  }
+}
+
 .landing-section-title {
   margin: 0 0 0.55rem;
   font-size: clamp(1.6rem, 2.8vw, 2.2rem);
@@ -2764,6 +3278,7 @@
   border: 1px solid var(--kl-border);
   background: var(--kl-surface);
   overflow: hidden;
+  cursor: pointer;
   box-shadow:
     0 1px 2px rgba(15, 23, 42, 0.05),
     0 8px 24px -12px rgba(76, 29, 149, 0.18);
@@ -4989,48 +5504,6 @@
    Landing — scroll-reveal, spotlight cards, hero shimmer / histogram pulse
    ===================================================================== */
 
-/* Base reveal state — opacity + small lift. Gets removed by .is-in. */
-.reveal {
-  opacity: 0;
-  transform: translate3d(0, 18px, 0);
-  transition:
-    opacity 700ms ease,
-    transform 700ms cubic-bezier(0.22, 1, 0.36, 1);
-  transition-delay: var(--reveal-delay, 0ms);
-  will-change: opacity, transform;
-}
-
-.reveal--fade {
-  transform: none;
-}
-
-.reveal--scale {
-  transform: translate3d(0, 12px, 0) scale(0.98);
-}
-
-/* Element itself came into view */
-.reveal.is-in {
-  opacity: 1;
-  transform: translate3d(0, 0, 0) scale(1);
-}
-
-/* Parent section came into view → stagger its declared-.reveal children */
-.is-in > .reveal,
-.is-in .landing-features__grid > .reveal,
-.is-in .landing-credits__people > .reveal {
-  opacity: 1;
-  transform: translate3d(0, 0, 0) scale(1);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .reveal,
-  .is-in > .reveal {
-    opacity: 1 !important;
-    transform: none !important;
-    transition: none !important;
-  }
-}
-
 /* —— FeatureGrid: cursor-follow spotlight —— */
 .landing-feature {
   overflow: hidden;
@@ -5302,25 +5775,112 @@
   }
 }
 
-/* ---- Matcher: stat card stagger reveal ------------------------------- */
-.matcher__stat--reveal {
-  opacity: 0;
-  transform: translate3d(0, 10px, 0);
-  animation: vrush-stat-land 520ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
-  animation-delay: var(--reveal-delay, 0ms);
+/* =====================================================================
+   Showcase shared-layout modal
+   ===================================================================== */
+.showcase-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(1rem, 4vw, 3rem);
+  background: rgba(8, 6, 22, 0.78);
+  backdrop-filter: blur(10px);
+  cursor: zoom-out;
 }
 
-@keyframes vrush-stat-land {
-  to {
-    opacity: 1;
-    transform: translate3d(0, 0, 0);
+.showcase-modal__card {
+  position: relative;
+  width: min(960px, 100%);
+  max-height: calc(100vh - 4rem);
+  overflow: hidden;
+  border-radius: var(--kl-radius);
+  border: 1px solid var(--kl-border);
+  background: var(--kl-surface);
+  box-shadow: 0 30px 80px -20px rgba(0, 0, 0, 0.65);
+  cursor: default;
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+}
+
+@media (max-width: 760px) {
+  .showcase-modal__card {
+    grid-template-columns: 1fr;
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .matcher__stat--reveal {
-    animation: none;
-    opacity: 1;
-    transform: none;
-  }
+.showcase-modal__pair {
+  display: grid;
+  grid-template-rows: 1fr 1fr;
+  gap: 0;
+  background: rgba(15, 23, 42, 0.6);
+}
+
+.showcase-modal__img {
+  position: relative;
+  overflow: hidden;
+}
+
+.showcase-modal__img svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.showcase-modal__body {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1.4rem 1.6rem 1.6rem;
+}
+
+.showcase-modal__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.showcase-modal__title {
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.showcase-modal__detail {
+  margin: 0;
+  color: var(--kl-text-muted);
+  line-height: 1.55;
+  font-size: 0.95rem;
+}
+
+.showcase-modal__actions {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin-top: auto;
+}
+
+.showcase-modal__x {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.6rem;
+  width: 2rem;
+  height: 2rem;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(15, 23, 42, 0.65);
+  color: #e2e8f0;
+  font-size: 1.1rem;
+  cursor: pointer;
+}
+
+.showcase-modal__x:hover {
+  background: rgba(124, 58, 237, 0.6);
 }

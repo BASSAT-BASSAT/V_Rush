@@ -1,11 +1,15 @@
-import type { ReactElement, ReactNode } from 'react'
-import { useReveal } from '../../hooks/useReveal'
+import { useState, type ReactElement, type ReactNode } from 'react'
+import { motion } from 'motion/react'
+import { MotionReveal } from '../../motion'
+import { ShowcaseDetail } from './ShowcaseDetail'
 
-interface ShowcaseItem {
+export interface ShowcaseItem {
   label: string
   op: string
   before: ReactElement
   after: ReactElement
+  /** Plain-text description shown in the expansion modal. */
+  detail?: string
 }
 
 /** Before/after gallery illustrated entirely with SVG gradients & filters — zero binary assets. */
@@ -16,56 +20,95 @@ export function ShowcaseGallery() {
       op: 'canny',
       before: <Portrait />,
       after: <PortraitEdges />,
+      detail:
+        'Canny chains a Gaussian blur, two Sobel gradients, non-maximum suppression, and hysteresis thresholding into a clean one-pixel edge map. Use it to feed contour detectors or to highlight structure in noisy frames.',
     },
     {
       label: 'K-Means quantization',
       op: 'kmeans',
       before: <SunsetScene />,
       after: <SunsetSceneKMeans />,
+      detail:
+        'Cluster every pixel into K colour bins and repaint the image with the cluster centroids. Great for posterisation, palette extraction, or as a fast pre-segmentation before edge / region ops.',
     },
     {
       label: 'MobileSAM cutout',
       op: 'mobile_sam',
       before: <Subject />,
       after: <SubjectCutout />,
+      detail:
+        'Tap a foreground point or drag a box and MobileSAM hands you a binary mask, a cut-out PNG, or a coloured overlay. Runs end-to-end in the browser with ONNX Runtime — no GPU required.',
     },
     {
       label: 'YOLO26 detection',
       op: 'yolo26_detect',
       before: <StreetScene />,
       after: <StreetSceneBoxes />,
+      detail:
+        'YOLOv26 returns class labels, confidence scores, and pixel-space bounding boxes for the 80 COCO categories. One click in Studio appends a crop step using the box you pick.',
     },
     {
       label: 'SIFT feature matcher',
       op: 'matcher.sift',
       before: <PairLeft />,
       after: <PairMatched />,
+      detail:
+        'SIFT detects scale-invariant keypoints and produces 128-dim float descriptors. Pair it with brute-force / FLANN matching, Lowe\u2019s ratio test, and RANSAC homography for robust image alignment.',
     },
   ]
 
-  const renderCard = (it: ShowcaseItem, key: string) => (
-    <article key={key} className="landing-showcase__card">
-      <div className="landing-showcase__pair">
-        <div className="landing-showcase__img landing-showcase__img--before">
-          {it.before}
-          <span className="landing-showcase__tag">Before</span>
-        </div>
-        <div className="landing-showcase__img landing-showcase__img--after">
-          {it.after}
-          <span className="landing-showcase__tag landing-showcase__tag--after">After</span>
-        </div>
-      </div>
-      <div className="landing-showcase__meta">
-        <span className="landing-showcase__label">{it.label}</span>
-        <code className="landing-showcase__op">{it.op}</code>
-      </div>
-    </article>
-  )
+  const [active, setActive] = useState<ShowcaseItem | null>(null)
 
-  const sectionRef = useReveal<HTMLElement>({ threshold: 0.15 })
+  const renderCard = (it: ShowcaseItem, key: string, interactive: boolean) => {
+    const layoutId = interactive ? `showcase-${it.op}` : undefined
+    const handle = () => interactive && setActive(it)
+    return (
+      <motion.article
+        key={key}
+        className="landing-showcase__card"
+        layoutId={layoutId}
+        onClick={handle}
+        whileHover={interactive ? { y: -4 } : undefined}
+        transition={{ type: 'spring', stiffness: 260, damping: 24 }}
+        role={interactive ? 'button' : undefined}
+        tabIndex={interactive ? 0 : -1}
+        onKeyDown={
+          interactive
+            ? (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  handle()
+                }
+              }
+            : undefined
+        }
+        aria-label={interactive ? `Open ${it.label} detail` : undefined}
+      >
+        <div className="landing-showcase__pair">
+          <div className="landing-showcase__img landing-showcase__img--before">
+            {it.before}
+            <span className="landing-showcase__tag">Before</span>
+          </div>
+          <div className="landing-showcase__img landing-showcase__img--after">
+            {it.after}
+            <span className="landing-showcase__tag landing-showcase__tag--after">After</span>
+          </div>
+        </div>
+        <div className="landing-showcase__meta">
+          <span className="landing-showcase__label">{it.label}</span>
+          <code className="landing-showcase__op">{it.op}</code>
+        </div>
+      </motion.article>
+    )
+  }
 
   return (
-    <section ref={sectionRef} className="landing-showcase reveal reveal--up" aria-labelledby="show-h">
+    <MotionReveal
+      as="section"
+      className="landing-showcase"
+      ariaLabelledBy="show-h"
+      amount={0.15}
+    >
       <h2 id="show-h" className="landing-section-title landing-showcase__title">
         Every op. <span className="landing-showcase__title-accent">One rush.</span>
       </h2>
@@ -80,14 +123,16 @@ export function ShowcaseGallery() {
 
         <div className="landing-showcase__track">
           <div className="landing-showcase__set">
-            {items.map((it) => renderCard(it, it.op))}
+            {items.map((it) => renderCard(it, it.op, true))}
           </div>
           <div className="landing-showcase__set" aria-hidden="true">
-            {items.map((it) => renderCard(it, `${it.op}-dup`))}
+            {items.map((it) => renderCard(it, `${it.op}-dup`, false))}
           </div>
         </div>
       </div>
-    </section>
+
+      <ShowcaseDetail item={active} onClose={() => setActive(null)} />
+    </MotionReveal>
   )
 }
 

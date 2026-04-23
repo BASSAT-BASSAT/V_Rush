@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { useReveal } from '../../hooks/useReveal'
+import { MotionReveal } from '../../motion'
 
 const COFOUNDERS = [
   {
@@ -20,14 +20,14 @@ const CONTACT_EMAIL = 'mohamedd77bassat@gmail.com'
 
 export function LandingCredits() {
   const year = useMemo(() => new Date().getFullYear(), [])
-  const sectionRef = useReveal<HTMLElement>({ threshold: 0.15 })
 
   return (
-    <section
-      ref={sectionRef}
-      className="landing-credits reveal reveal--up"
+    <MotionReveal
+      as="section"
+      className="landing-credits"
       id="about"
-      aria-labelledby="landing-credits-title"
+      ariaLabelledBy="landing-credits-title"
+      amount={0.15}
     >
       <header className="landing-credits__head">
         <span className="landing-credits__eyebrow">The team</span>
@@ -80,6 +80,6 @@ export function LandingCredits() {
           &copy; {year} V-Rush&trade;. All rights reserved.
         </p>
       </div>
-    </section>
+    </MotionReveal>
   )
 }

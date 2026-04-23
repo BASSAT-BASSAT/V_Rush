@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { useLocation, useOutletContext } from 'react-router-dom'
 import { base64ToFile, fetchMatcherCapabilities, matchImages } from '../api/cv'
+import { DatasetTray } from '../components/DatasetTray'
 import { FileDrop } from '../components/FileDrop'
 import type {
   MatchOptions,
@@ -12,8 +14,7 @@ import type {
   PreloadedPairState,
 } from '../types/cv'
 import type { AppLayoutOutlet } from '../types/layout'
-import { useWorkspace } from '../hooks/useWorkspace'
-import { useCountUp } from '../hooks/useCountUp'
+import { MotionCountUp, MotionToast } from '../motion'
 
 const FALLBACK_ALGOS: MatcherAlgoInfo[] = [
   {
@@ -159,37 +160,33 @@ interface StatCardProps {
   /** Optional suffix appended to the animated number (e.g. "%"). */
   suffix?: string
   hint?: string
-  /** Staggered reveal index. */
-  index?: number
 }
 
-function StatCard({ label, value, decimals = 0, suffix = '', hint, index = 0 }: StatCardProps) {
+const STAT_CARD_VARIANTS = {
+  hidden: { opacity: 0, y: 14, scale: 0.96 },
+  show: {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: { type: 'spring' as const, stiffness: 280, damping: 22 },
+  },
+}
+
+function StatCard({ label, value, decimals = 0, suffix = '', hint }: StatCardProps) {
   const isNumeric = typeof value === 'number'
-  const animated = useCountUp(isNumeric ? value : 0, {
-    enabled: isNumeric,
-    duration: 900,
-  })
-  const display = isNumeric
-    ? decimals > 0
-      ? animated.toLocaleString(undefined, {
-          minimumFractionDigits: decimals,
-          maximumFractionDigits: decimals,
-        })
-      : animated.toLocaleString()
-    : value
 
   return (
-    <div
-      className="matcher__stat matcher__stat--reveal"
-      style={{ ['--reveal-delay' as string]: `${index * 70}ms` }}
-    >
+    <motion.div className="matcher__stat" variants={STAT_CARD_VARIANTS}>
       <span className="matcher__stat-label">{label}</span>
       <span className="matcher__stat-value">
-        {display}
-        {isNumeric && suffix ? suffix : ''}
+        {isNumeric ? (
+          <MotionCountUp to={value} decimals={decimals} suffix={suffix} duration={1.0} />
+        ) : (
+          value
+        )}
       </span>
       {hint && <span className="matcher__stat-hint">{hint}</span>}
-    </div>
+    </motion.div>
   )
 }
 
@@ -212,12 +209,8 @@ export function MatcherPage() {
   const { accessToken } = useOutletContext<AppLayoutOutlet>()
   const location = useLocation()
 
-  const {
-    matcherFileA: fileA,
-    setMatcherFileA: setFileA,
-    matcherFileB: fileB,
-    setMatcherFileB: setFileB,
-  } = useWorkspace()
+  const [fileA, setFileA] = useState<File | null>(null)
+  const [fileB, setFileB] = useState<File | null>(null)
   const [previewA, setPreviewA] = useState<string | null>(null)
   const [previewB, setPreviewB] = useState<string | null>(null)
 
@@ -411,6 +404,18 @@ export function MatcherPage() {
           )}
         </div>
       </section>
+
+      <DatasetTray
+        mode="matcher"
+        onPickSlot={(slot, file) => {
+          lastDropTarget.current = slot
+          if (slot === 'A') setFileA(file)
+          else setFileB(file)
+        }}
+        activeFileA={fileA}
+        activeFileB={fileB}
+        disabled={loading}
+      />
 
       <section className="matcher__controls dock-panel">
         <h2 className="dock-panel__title">
@@ -609,20 +614,32 @@ export function MatcherPage() {
         </div>
       </section>
 
-      {error && <div className="banner banner--error matcher__banner">{error}</div>}
-      {result && result.warnings.length > 0 && (
-        <div className="banner banner--warn matcher__banner">
-          <strong>Heads up</strong>
-          <ul>
-            {result.warnings.map((w) => (
-              <li key={w}>{w}</li>
-            ))}
-          </ul>
-        </div>
-      )}
+      <MotionToast show={Boolean(error)} kind="error" className="matcher__banner">
+        {error}
+      </MotionToast>
+      <MotionToast
+        show={Boolean(result && result.warnings.length > 0)}
+        kind="warn"
+        className="matcher__banner"
+      >
+        <strong>Heads up</strong>
+        <ul>
+          {result?.warnings.map((w) => (
+            <li key={w}>{w}</li>
+          ))}
+        </ul>
+      </MotionToast>
 
-      {result && (
-        <section className="matcher__result dock-panel">
+      <AnimatePresence mode="wait" initial={false}>
+        {result && (
+        <motion.section
+          key={animKey}
+          className="matcher__result dock-panel"
+          initial={{ opacity: 0, y: 18 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10 }}
+          transition={{ duration: 0.4, ease: [0.16, 0.84, 0.32, 1] }}
+        >
           <div className="matcher__result-head">
             <h2 className="dock-panel__title dock-panel__title--center">
               <span className="dock-panel__dot dock-panel__dot--cyan" />
@@ -660,40 +677,35 @@ export function MatcherPage() {
             )}
           </div>
 
-          <div className="matcher__stats">
+          <StatsGrid>
             <StatCard
-              index={0}
               label="Keypoints A"
               value={result.stats.keypoints_a}
               hint={`Algo · ${result.stats.algo.toUpperCase()}`}
             />
-            <StatCard index={1} label="Keypoints B" value={result.stats.keypoints_b} />
-            <StatCard index={2} label="Raw pairs" value={result.stats.raw_matches} />
+            <StatCard label="Keypoints B" value={result.stats.keypoints_b} />
+            <StatCard label="Raw pairs" value={result.stats.raw_matches} />
             <StatCard
-              index={3}
               label="Good matches"
               value={result.stats.good_matches}
               hint={`Matcher · ${result.stats.matcher.toUpperCase()}`}
             />
             <StatCard
-              index={4}
               label="RANSAC inliers"
               value={result.stats.inliers}
               hint={`${(result.stats.inlier_ratio * 100).toFixed(1)}% of good`}
             />
             <StatCard
-              index={5}
               label="Avg distance"
               value={result.stats.avg_distance}
               decimals={2}
               hint={algoIsBinary ? 'Hamming bits' : 'L2 norm'}
             />
             <StatCard
-              index={6}
               label="Compute time"
               value={`${result.stats.elapsed_ms.toFixed(1)} ms`}
             />
-          </div>
+          </StatsGrid>
 
           {result.homography && (
             <details className="matcher__h-panel">
@@ -725,8 +737,30 @@ export function MatcherPage() {
               </button>
             )}
           </div>
-        </section>
+        </motion.section>
       )}
+      </AnimatePresence>
     </div>
+  )
+}
+
+const STATS_GRID_VARIANTS = {
+  hidden: {},
+  show: {
+    transition: { staggerChildren: 0.07, delayChildren: 0.05 },
+  },
+}
+
+function StatsGrid({ children }: { children: React.ReactNode }) {
+  const reduced = useReducedMotion()
+  return (
+    <motion.div
+      className="matcher__stats"
+      variants={reduced ? undefined : STATS_GRID_VARIANTS}
+      initial="hidden"
+      animate="show"
+    >
+      {children}
+    </motion.div>
   )
 }

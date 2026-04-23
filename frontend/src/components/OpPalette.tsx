@@ -21,7 +21,7 @@ const CATEGORY_ORDER = [
 
 interface Props {
   ops: OpInfo[]
-  onAdd: (op: OpInfo) => void
+  onAdd: (op: OpInfo, sourceRect?: DOMRect, label?: string) => void
   disabled?: boolean
   /** When true, omit large heading (used inside tabbed workspace). */
   embedded?: boolean
@@ -161,7 +161,9 @@ export function OpPalette({ ops, onAdd, disabled, embedded }: Props) {
             role="option"
             className="op-palette__btn"
             disabled={disabled}
-            onClick={() => onAdd(o)}
+            onClick={(e) =>
+              onAdd(o, (e.currentTarget as HTMLElement).getBoundingClientRect(), o.label)
+            }
           >
             <span className="op-palette__btn-label">{o.label}</span>
             <span className="op-palette__btn-meta">

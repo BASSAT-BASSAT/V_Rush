@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { fetchOps } from '../api/cv'
 import { NewsletterForm } from './NewsletterForm'
 import { ThemeToggle } from './ThemeToggle'
+import { WaveBackdrop } from './WaveBackdrop'
 import { useAuth } from '../hooks/useAuth'
 import type { AppLayoutOutlet } from '../types/layout'
 
@@ -25,11 +27,16 @@ export function AppLayout() {
   }, [accessToken, isStudio])
 
   const outletCtx: AppLayoutOutlet = { ops, opsError, accessToken }
+  const reduced = useReducedMotion()
+  // Group all auth-callback / signin paths together so that internal sub-state
+  // changes don't re-fire the page transition.
+  const transitionKey = location.pathname.split('/')[1] || 'home'
 
   return (
     <div className="app">
       <div className="app__aurora" aria-hidden />
       <div className="app__grid-bg" aria-hidden />
+      <WaveBackdrop />
 
       <div className="app__shell">
         <header className="app__header">
@@ -111,7 +118,18 @@ export function AppLayout() {
           </div>
         </header>
 
-        <Outlet context={outletCtx} />
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div
+            key={transitionKey}
+            className="app__route"
+            initial={reduced ? { opacity: 1 } : { opacity: 0, y: 8 }}
+            animate={reduced ? { opacity: 1 } : { opacity: 1, y: 0 }}
+            exit={reduced ? { opacity: 0 } : { opacity: 0, y: -6 }}
+            transition={reduced ? { duration: 0 } : { duration: 0.28, ease: [0.16, 0.84, 0.32, 1] }}
+          >
+            <Outlet context={outletCtx} />
+          </motion.div>
+        </AnimatePresence>
 
         <footer className="app__footer">
           <div className="app__footer-row">

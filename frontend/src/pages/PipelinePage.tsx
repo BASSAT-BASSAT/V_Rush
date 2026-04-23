@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, NavLink, useLocation, useOutletContext } from 'react-router-dom'
 import { base64ToFile, processImage } from '../api/cv'
 import type { PreloadedImageState } from '../types/cv'
@@ -8,12 +8,14 @@ import { copyTextToClipboard } from '../lib/clipboard'
 import { pipelineToPython } from '../lib/pipelineToPython'
 import { recordCodeExport } from '../lib/recordCodeExport'
 import { BeforeAfter } from '../components/BeforeAfter'
+import { DatasetTray } from '../components/DatasetTray'
 import { FileDrop } from '../components/FileDrop'
+import { FlyToStack, type FlyToStackHandle } from '../components/FlyToStack'
 import { HistogramPanel } from '../components/HistogramPanel'
 import { OpPalette } from '../components/OpPalette'
 import { PipelineStack } from '../components/PipelineStack'
 import { computeImageStats } from '../lib/imageStats'
-import { useWorkspace } from '../hooks/useWorkspace'
+import { MotionToast } from '../motion'
 import type { DetectionItem, ImageStats, OpInfo, PipelineStepUI, ProcessResponse } from '../types/cv'
 import type { AppLayoutOutlet } from '../types/layout'
 
@@ -28,10 +30,9 @@ export function PipelinePage() {
   const location = useLocation()
   const mode: 'classical' | 'ml' = location.pathname.startsWith('/lab') ? 'ml' : 'classical'
 
-  const { studioFile: file, setStudioFile: setFile } = useWorkspace()
+  const [file, setFile] = useState<File | null>(null)
   const [beforeUrl, setBeforeUrl] = useState<string | null>(null)
   const [steps, setSteps] = useState<PipelineStepUI[]>([])
-  const [dragKey, setDragKey] = useState<string | null>(null)
   const [loadingRun, setLoadingRun] = useState(false)
   const [procError, setProcError] = useState<string | null>(null)
   const [result, setResult] = useState<ProcessResponse | null>(null)
@@ -39,6 +40,8 @@ export function PipelinePage() {
   const [copyNotice, setCopyNotice] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null)
   const [workspaceTab, setWorkspaceTab] = useState<WorkspaceTab>('ops')
   const [flashKey, setFlashKey] = useState<string | null>(null)
+  const [runningIdx, setRunningIdx] = useState<number | null>(null)
+  const flyRef = useRef<FlyToStackHandle | null>(null)
   const [clientBeforeStats, setClientBeforeStats] = useState<ImageStats | null>(null)
   const [histogramOpen, setHistogramOpen] = useState<boolean>(() => {
     try {
@@ -90,6 +93,13 @@ export function PipelinePage() {
   }, [location.state])
 
   useEffect(() => {
+    // A brand-new source should wipe the previous pipeline's output so the
+    // After pane never shows a stale image / stats from a different input.
+    setResult(null)
+    setAfterSrc(null)
+    setProcError(null)
+    setCopyNotice(null)
+
     if (!file) {
       setBeforeUrl(null)
       setClientBeforeStats(null)
@@ -133,21 +143,33 @@ export function PipelinePage() {
     return () => window.clearTimeout(t)
   }, [flashKey])
 
-  const addOp = useCallback((op: OpInfo) => {
-    const key = newKey()
-    setSteps((prev) => [
-      ...prev,
-      {
-        key,
-        op: op.id,
-        paramsJson: JSON.stringify(op.default_params, null, 2),
-      },
-    ])
-    // Switch to the pipeline view so the user immediately sees the step they
-    // just added (instead of staying on the ops tab with no feedback).
-    setWorkspaceTab('pipeline')
-    setFlashKey(key)
-  }, [])
+  const addOp = useCallback(
+    (op: OpInfo, sourceRect?: DOMRect, label?: string) => {
+      const key = newKey()
+      const commit = () => {
+        setSteps((prev) => [
+          ...prev,
+          {
+            key,
+            op: op.id,
+            paramsJson: JSON.stringify(op.default_params, null, 2),
+          },
+        ])
+        setWorkspaceTab('pipeline')
+        setFlashKey(key)
+      }
+      if (sourceRect && flyRef.current) {
+        flyRef.current.fly({
+          sourceRect,
+          label: label ?? op.label ?? op.id,
+          onArrive: commit,
+        })
+      } else {
+        commit()
+      }
+    },
+    [],
+  )
 
   const parseSteps = useCallback(() => {
     return steps.map((s) => {
@@ -194,22 +216,23 @@ export function PipelinePage() {
     })
   }, [])
 
-  const onDropOn = useCallback(
-    (targetKey: string) => {
-      if (!dragKey || dragKey === targetKey) return
-      setSteps((prev) => {
-        const di = prev.findIndex((s) => s.key === dragKey)
-        const ti = prev.findIndex((s) => s.key === targetKey)
-        if (di < 0 || ti < 0) return prev
-        const next = [...prev]
-        const [item] = next.splice(di, 1)
-        next.splice(ti, 0, item)
-        return next
+  // Decorative travelling outline while the pipeline is running. The backend
+  // doesn't stream per-step progress today, so this is a cosmetic runner that
+  // walks the stack at a fixed cadence to give the run perceived motion.
+  useEffect(() => {
+    if (!loadingRun || steps.length === 0) {
+      setRunningIdx(null)
+      return
+    }
+    setRunningIdx(0)
+    const tick = window.setInterval(() => {
+      setRunningIdx((i) => {
+        if (i === null) return 0
+        return (i + 1) % steps.length
       })
-      setDragKey(null)
-    },
-    [dragKey],
-  )
+    }, 360)
+    return () => window.clearInterval(tick)
+  }, [loadingRun, steps.length])
 
   const copyPipelineJson = useCallback(async () => {
     setCopyNotice(null)
@@ -301,7 +324,11 @@ export function PipelinePage() {
         </NavLink>
       </nav>
 
-      {opsError && <div className="banner banner--error">{opsError}</div>}
+      <FlyToStack ref={flyRef} />
+
+      <MotionToast show={Boolean(opsError)} kind="error">
+        {opsError}
+      </MotionToast>
 
       <div className="app__grid">
         <aside className="app__col app__col--side app__col--source">
@@ -309,11 +336,28 @@ export function PipelinePage() {
             <h2 className="dock-panel__title">
               <span className="dock-panel__dot dock-panel__dot--cyan" />
               Source
+              {file && (
+                <button
+                  type="button"
+                  className="btn btn--ghost btn--sm dock-panel__title-action"
+                  onClick={() => setFile(null)}
+                  disabled={loadingRun}
+                  title="Clear the current source image"
+                >
+                  Clear source
+                </button>
+              )}
             </h2>
             <p className="panel-hint panel-hint--tight">
-              Upload an image, build steps in the right panel, then <strong>Run pipeline</strong> in the preview.
+              Upload a single image or a whole folder — then click any tile below to load it.
             </p>
             <FileDrop onFile={setFile} disabled={loadingRun} />
+            <DatasetTray
+              mode="studio"
+              onPick={setFile}
+              activeFile={file}
+              disabled={loadingRun}
+            />
           </section>
         </aside>
 
@@ -347,22 +391,27 @@ export function PipelinePage() {
               }
             />
 
-            {procError && <div className="banner banner--error">{procError}</div>}
-            {result && result.warnings.length > 0 && (
-              <div className="banner banner--warn">
-                <strong>Warnings</strong>
-                <ul>
-                  {result.warnings.map((w) => (
-                    <li key={w}>{w}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            {copyNotice && (
-              <div className={`banner ${copyNotice.kind === 'ok' ? 'banner--ok' : 'banner--error'}`} role="status">
-                {copyNotice.text}
-              </div>
-            )}
+            <MotionToast show={Boolean(procError)} kind="error">
+              {procError}
+            </MotionToast>
+            <MotionToast
+              show={Boolean(result && result.warnings.length > 0)}
+              kind="warn"
+            >
+              <strong>Warnings</strong>
+              <ul>
+                {result?.warnings.map((w) => (
+                  <li key={w}>{w}</li>
+                ))}
+              </ul>
+            </MotionToast>
+            <MotionToast
+              show={Boolean(copyNotice)}
+              kind={copyNotice?.kind === 'ok' ? 'ok' : 'error'}
+              role="status"
+            >
+              {copyNotice?.text}
+            </MotionToast>
 
             <div className="toolbar toolbar--primary">
               <button
@@ -514,12 +563,11 @@ export function PipelinePage() {
                   steps={steps}
                   opsById={opsById}
                   flashKey={flashKey}
+                  runningIdx={runningIdx}
                   onChangeParams={(key, json) => setSteps((prev) => prev.map((s) => (s.key === key ? { ...s, paramsJson: json } : s)))}
                   onRemove={(key) => setSteps((prev) => prev.filter((s) => s.key !== key))}
                   onMove={onMove}
-                  onDragStart={setDragKey}
-                  onDropOn={onDropOn}
-                  dragKey={dragKey}
+                  onReorder={setSteps}
                 />
                 <button
                   type="button"
