@@ -573,6 +573,67 @@ _img = cv2.magnitude(_img[:, :, 0], _img[:, :, 1])
 _img = cv2.normalize(_img[:_oh, :_ow], None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
 out = cv2.cvtColor(_img, cv2.COLOR_GRAY2BGR)`
     }
+    case 'frequency_ideal_lowpass':
+    case 'frequency_ideal_highpass': {
+      const d0 = flt(p.cutoff_frequency, 30)
+      const highPass = op === 'frequency_ideal_highpass'
+      const maskExpr = highPass
+        ? '1.0 - (_d <= _d0).astype(np.float32)'
+        : '(_d <= _d0).astype(np.float32)'
+      return `${hdr}
+_d0 = ${pyVal(d0)}
+_max_d0 = max(1.0, min(out.shape[0], out.shape[1]) / 2)
+_d0 = float(np.clip(_d0, 1.0, _max_d0))
+_gray = cv2.cvtColor(out, cv2.COLOR_BGR2GRAY).astype(np.float32)
+_oh, _ow = _gray.shape
+_pad = cv2.copyMakeBorder(_gray, 0, cv2.getOptimalDFTSize(_oh) - _oh, 0, cv2.getOptimalDFTSize(_ow) - _ow, cv2.BORDER_CONSTANT)
+_h, _w = _pad.shape
+_dft = cv2.dft(_pad, flags=cv2.DFT_COMPLEX_OUTPUT)
+_shift = np.fft.fftshift(_dft)
+_cy, _cx = _h // 2, _w // 2
+_yy, _xx = np.ogrid[:_h, :_w]
+_d = np.sqrt((_xx - _cx) ** 2 + (_yy - _cy) ** 2).astype(np.float32)
+_mask = (${maskExpr}).astype(np.float32)
+_shift[:, :, 0] *= _mask
+_shift[:, :, 1] *= _mask
+_un = np.fft.ifftshift(_shift)
+_img = cv2.idft(_un)
+_img = cv2.magnitude(_img[:, :, 0], _img[:, :, 1])
+_img = cv2.normalize(_img[:_oh, :_ow], None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
+out = cv2.cvtColor(_img, cv2.COLOR_GRAY2BGR)`
+    }
+    case 'frequency_butterworth_lowpass':
+    case 'frequency_butterworth_highpass': {
+      const d0 = flt(p.cutoff_frequency, 30)
+      const order = intg(p.order, 2)
+      const highPass = op === 'frequency_butterworth_highpass'
+      const maskExpr = highPass
+        ? '1.0 - 1.0 / (1.0 + (_d / max(_d0, 1e-6)) ** (2 * _n))'
+        : '1.0 / (1.0 + (_d / max(_d0, 1e-6)) ** (2 * _n))'
+      return `${hdr}
+_d0 = ${pyVal(d0)}
+_n = ${pyVal(order)}
+_max_d0 = max(1.0, min(out.shape[0], out.shape[1]) / 2)
+_d0 = float(np.clip(_d0, 1.0, _max_d0))
+_n = int(np.clip(_n, 1, 10))
+_gray = cv2.cvtColor(out, cv2.COLOR_BGR2GRAY).astype(np.float32)
+_oh, _ow = _gray.shape
+_pad = cv2.copyMakeBorder(_gray, 0, cv2.getOptimalDFTSize(_oh) - _oh, 0, cv2.getOptimalDFTSize(_ow) - _ow, cv2.BORDER_CONSTANT)
+_h, _w = _pad.shape
+_dft = cv2.dft(_pad, flags=cv2.DFT_COMPLEX_OUTPUT)
+_shift = np.fft.fftshift(_dft)
+_cy, _cx = _h // 2, _w // 2
+_yy, _xx = np.ogrid[:_h, :_w]
+_d = np.sqrt((_xx - _cx) ** 2 + (_yy - _cy) ** 2).astype(np.float32)
+_mask = (${maskExpr}).astype(np.float32)
+_shift[:, :, 0] *= _mask
+_shift[:, :, 1] *= _mask
+_un = np.fft.ifftshift(_shift)
+_img = cv2.idft(_un)
+_img = cv2.magnitude(_img[:, :, 0], _img[:, :, 1])
+_img = cv2.normalize(_img[:_oh, :_ow], None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
+out = cv2.cvtColor(_img, cv2.COLOR_GRAY2BGR)`
+    }
     case 'yolo26_detect': {
       const conf = flt(p.conf, 0.25)
       const maxDet = intg(p.max_det, 100)

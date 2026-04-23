@@ -218,6 +218,20 @@ OP_PARAM_HELP: dict[str, dict[str, str]] = {
     "frequency_gaussian_highpass": {
         "sigma_frequency": "Controls high-pass width; smaller σ keeps more high frequencies (sharper, noisier).",
     },
+    "frequency_ideal_lowpass": {
+        "cutoff_frequency": "Radius D0 (in frequency bins) of the pass disk centered on DC; smaller = stronger blur.",
+    },
+    "frequency_ideal_highpass": {
+        "cutoff_frequency": "Radius D0 of the stopped disk centered on DC; larger = more low frequencies removed.",
+    },
+    "frequency_butterworth_lowpass": {
+        "cutoff_frequency": "Butterworth cutoff radius D0 (frequency bins) where H ≈ 0.5; smaller = stronger blur.",
+        "order": "Filter order n (1–10); higher = sharper transition closer to an ideal filter (more ringing).",
+    },
+    "frequency_butterworth_highpass": {
+        "cutoff_frequency": "Butterworth high-pass cutoff radius D0; larger = more low frequencies removed.",
+        "order": "Filter order n (1–10); higher = sharper low-to-high transition (more ringing).",
+    },
     # —— Detection (YOLO26) ——
     "yolo26_detect": {
         "conf": "Minimum confidence in [0, 1]. Higher = fewer boxes.",

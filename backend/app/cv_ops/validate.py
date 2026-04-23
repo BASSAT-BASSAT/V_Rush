@@ -57,7 +57,7 @@ def validate_pipeline(raw_steps: list[dict]) -> ValidatedPipeline:
 
         if i > 0:
             prev_id = steps[-1][0]
-            if prev_id.startswith("frequency_gaussian") and op_id == "gaussian_blur":
+            if prev_id.startswith("frequency_") and op_id == "gaussian_blur":
                 warnings.append(
                     "Spatial blur after frequency-domain filter: order may affect interpretation."
                 )

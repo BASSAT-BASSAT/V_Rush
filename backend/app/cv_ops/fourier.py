@@ -5,7 +5,7 @@ from __future__ import annotations
 import cv2
 import numpy as np
 
-from app.cv_ops._params import clamp_float
+from app.cv_ops._params import clamp_float, clamp_int
 
 
 def _gray_float(bgr: np.ndarray) -> np.ndarray:
@@ -48,26 +48,46 @@ def apply_dft_phase_spectrum(bgr: np.ndarray, params: dict) -> np.ndarray:
     return _spectrum_to_bgr(ph, sd)
 
 
-def _gaussian_mask(shape: tuple[int, int], sigma: float, *, high_pass: bool) -> np.ndarray:
+def _distance_grid(shape: tuple[int, int]) -> np.ndarray:
     h, w = shape
     cy, cx = h // 2, w // 2
     y, x = np.ogrid[:h, :w]
-    g = np.exp(-((x - cx) ** 2 + (y - cy) ** 2) / (2 * sigma**2))
+    return np.sqrt((x - cx) ** 2 + (y - cy) ** 2).astype(np.float32)
+
+
+def _gaussian_mask(shape: tuple[int, int], sigma: float, *, high_pass: bool) -> np.ndarray:
+    d = _distance_grid(shape)
+    g = np.exp(-(d**2) / (2 * sigma**2)).astype(np.float32)
     if high_pass:
-        return 1.0 - g
+        return (1.0 - g).astype(np.float32)
     return g
 
 
-def _freq_filter_spatial(bgr: np.ndarray, params: dict, *, high_pass: bool) -> np.ndarray:
-    max_sig = min(bgr.shape[0], bgr.shape[1]) / 2
-    sigma = clamp_float(params.get("sigma_frequency", 30.0), 1.0, max_sig)
+def _ideal_mask(shape: tuple[int, int], d0: float, *, high_pass: bool) -> np.ndarray:
+    d = _distance_grid(shape)
+    m = (d <= d0).astype(np.float32)
+    if high_pass:
+        return (1.0 - m).astype(np.float32)
+    return m
+
+
+def _butterworth_mask(
+    shape: tuple[int, int], d0: float, order: int, *, high_pass: bool
+) -> np.ndarray:
+    d = _distance_grid(shape)
+    # Low-pass Butterworth: 1 / (1 + (D/D0)^(2n)); d0 already clamped >= 1.
+    lp = 1.0 / (1.0 + (d / max(d0, 1e-6)) ** (2 * order))
+    lp = lp.astype(np.float32)
+    if high_pass:
+        return (1.0 - lp).astype(np.float32)
+    return lp
+
+
+def _apply_freq_mask(bgr: np.ndarray, mask: np.ndarray, *, oh: int, ow: int) -> np.ndarray:
     gray = _gray_float(bgr)
-    oh, ow = gray.shape
     padded = _pad_dft(gray)
-    h, w = padded.shape
     dft = cv2.dft(padded, flags=cv2.DFT_COMPLEX_OUTPUT)
     shifted = np.fft.fftshift(dft)
-    mask = _gaussian_mask((h, w), sigma, high_pass=high_pass).astype(np.float32)
     shifted[:, :, 0] *= mask
     shifted[:, :, 1] *= mask
     unshifted = np.fft.ifftshift(shifted)
@@ -78,6 +98,21 @@ def _freq_filter_spatial(bgr: np.ndarray, params: dict, *, high_pass: bool) -> n
     return cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
 
 
+def _padded_shape(bgr: np.ndarray) -> tuple[int, int, int, int]:
+    oh, ow = bgr.shape[:2]
+    ph = cv2.getOptimalDFTSize(oh)
+    pw = cv2.getOptimalDFTSize(ow)
+    return oh, ow, ph, pw
+
+
+def _freq_filter_spatial(bgr: np.ndarray, params: dict, *, high_pass: bool) -> np.ndarray:
+    max_sig = min(bgr.shape[0], bgr.shape[1]) / 2
+    sigma = clamp_float(params.get("sigma_frequency", 30.0), 1.0, max_sig)
+    oh, ow, ph, pw = _padded_shape(bgr)
+    mask = _gaussian_mask((ph, pw), sigma, high_pass=high_pass)
+    return _apply_freq_mask(bgr, mask, oh=oh, ow=ow)
+
+
 def apply_frequency_gaussian_lp(bgr: np.ndarray, params: dict) -> np.ndarray:
     return _freq_filter_spatial(bgr, params, high_pass=False)
 
@@ -86,8 +121,55 @@ def apply_frequency_gaussian_hp(bgr: np.ndarray, params: dict) -> np.ndarray:
     return _freq_filter_spatial(bgr, params, high_pass=True)
 
 
+def _cutoff(params: dict, bgr: np.ndarray) -> float:
+    max_d0 = max(1.0, min(bgr.shape[0], bgr.shape[1]) / 2)
+    return clamp_float(params.get("cutoff_frequency", 30.0), 1.0, max_d0)
+
+
+def _freq_ideal(bgr: np.ndarray, params: dict, *, high_pass: bool) -> np.ndarray:
+    d0 = _cutoff(params, bgr)
+    oh, ow, ph, pw = _padded_shape(bgr)
+    mask = _ideal_mask((ph, pw), d0, high_pass=high_pass)
+    return _apply_freq_mask(bgr, mask, oh=oh, ow=ow)
+
+
+def _freq_butterworth(bgr: np.ndarray, params: dict, *, high_pass: bool) -> np.ndarray:
+    d0 = _cutoff(params, bgr)
+    order = clamp_int(params.get("order", 2), 1, 10)
+    oh, ow, ph, pw = _padded_shape(bgr)
+    mask = _butterworth_mask((ph, pw), d0, order, high_pass=high_pass)
+    return _apply_freq_mask(bgr, mask, oh=oh, ow=ow)
+
+
+def apply_frequency_ideal_lp(bgr: np.ndarray, params: dict) -> np.ndarray:
+    return _freq_ideal(bgr, params, high_pass=False)
+
+
+def apply_frequency_ideal_hp(bgr: np.ndarray, params: dict) -> np.ndarray:
+    return _freq_ideal(bgr, params, high_pass=True)
+
+
+def apply_frequency_butterworth_lp(bgr: np.ndarray, params: dict) -> np.ndarray:
+    return _freq_butterworth(bgr, params, high_pass=False)
+
+
+def apply_frequency_butterworth_hp(bgr: np.ndarray, params: dict) -> np.ndarray:
+    return _freq_butterworth(bgr, params, high_pass=True)
+
+
 def validate_sigma_frq(p: dict) -> dict:
     return {"sigma_frequency": clamp_float(p.get("sigma_frequency", 30.0), 1.0, 2000.0)}
+
+
+def validate_cutoff(p: dict) -> dict:
+    return {"cutoff_frequency": clamp_float(p.get("cutoff_frequency", 30.0), 1.0, 2000.0)}
+
+
+def validate_cutoff_order(p: dict) -> dict:
+    return {
+        "cutoff_frequency": clamp_float(p.get("cutoff_frequency", 30.0), 1.0, 2000.0),
+        "order": clamp_int(p.get("order", 2), 1, 10),
+    }
 
 
 def validate_spectrum_display(p: dict) -> dict:
@@ -167,6 +249,72 @@ FOURIER_SPECS: list[dict] = [
         "detail_doc": (
             "Uses 1 minus a Gaussian centered on DC so low frequencies are attenuated and "
             "edges/detail are emphasized. Inverse DFT returns a spatial high-pass result."
+        ),
+    },
+    {
+        "id": "frequency_ideal_lowpass",
+        "label": "Ideal low-pass (frequency)",
+        "category": "fourier",
+        "description": (
+            "Hard-cutoff disk mask in frequency domain: pass frequencies within radius D0."
+        ),
+        "default_params": {"cutoff_frequency": 30.0},
+        "apply": apply_frequency_ideal_lp,
+        "validate_params": validate_cutoff,
+        "output_kind": "spatial",
+        "detail_doc": (
+            "Builds a binary mask that is 1 inside a disk of radius cutoff_frequency around DC "
+            "and 0 outside, multiplies the shifted spectrum, then inverse DFT. The sharp cutoff "
+            "produces visible ringing artifacts (Gibbs phenomenon) in the spatial output — it is "
+            "useful as a teaching reference but Butterworth/Gaussian are preferred in practice."
+        ),
+    },
+    {
+        "id": "frequency_ideal_highpass",
+        "label": "Ideal high-pass (frequency)",
+        "category": "fourier",
+        "description": "High-pass via 1−ideal disk mask in frequency domain.",
+        "default_params": {"cutoff_frequency": 30.0},
+        "apply": apply_frequency_ideal_hp,
+        "validate_params": validate_cutoff,
+        "output_kind": "spatial",
+        "detail_doc": (
+            "Inverse of the ideal low-pass: zeros out a disk of radius cutoff_frequency around "
+            "DC and keeps everything else. Emphasizes edges and fine detail but, like its "
+            "low-pass counterpart, introduces ringing due to the hard boundary in frequency."
+        ),
+    },
+    {
+        "id": "frequency_butterworth_lowpass",
+        "label": "Butterworth low-pass (frequency)",
+        "category": "fourier",
+        "description": (
+            "Butterworth low-pass H = 1/(1 + (D/D0)^(2n)) applied in the frequency domain."
+        ),
+        "default_params": {"cutoff_frequency": 30.0, "order": 2},
+        "apply": apply_frequency_butterworth_lp,
+        "validate_params": validate_cutoff_order,
+        "output_kind": "spatial",
+        "detail_doc": (
+            "Applies the Butterworth transfer function H(u,v) = 1 / (1 + (D/D0)^(2n)) to the "
+            "shifted spectrum, then inverse DFT. cutoff_frequency sets D0 (the -3 dB-like "
+            "radius), and order controls how sharp the transition is: n=1 is very smooth (close "
+            "to Gaussian), higher n approaches the ideal filter with more ringing."
+        ),
+    },
+    {
+        "id": "frequency_butterworth_highpass",
+        "label": "Butterworth high-pass (frequency)",
+        "category": "fourier",
+        "description": "High-pass via 1−Butterworth mask in frequency domain.",
+        "default_params": {"cutoff_frequency": 30.0, "order": 2},
+        "apply": apply_frequency_butterworth_hp,
+        "validate_params": validate_cutoff_order,
+        "output_kind": "spatial",
+        "detail_doc": (
+            "High-pass counterpart built as 1 minus the Butterworth low-pass. Low frequencies "
+            "near DC are smoothly attenuated and higher frequencies pass through. Increase "
+            "order for a steeper low/high transition; decrease it for a gentler roll-off."
         ),
     },
 ]
