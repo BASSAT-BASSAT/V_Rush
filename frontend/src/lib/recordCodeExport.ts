@@ -1,22 +1,14 @@
-import { getSupabase } from './supabase'
+import { invokeProfileRpc } from './supabaseProfileRpc'
 
-/** Bump `profiles.code_export_count` for the signed-in user (no-op if no Supabase / no session). */
-export async function recordCodeExport(): Promise<void> {
+/** Bump ``profiles.code_export_count`` (Copy / Download Python). */
+export async function recordCodeExport(accessToken?: string | null): Promise<boolean> {
   const url = import.meta.env.VITE_SUPABASE_URL?.trim()
-  if (!url) return
+  if (!url) return false
 
   try {
-    const sb = getSupabase()
-    const {
-      data: { session },
-    } = await sb.auth.getSession()
-    if (!session?.user) return
-
-    const { error } = await sb.rpc('increment_code_export_count')
-    if (error) {
-      console.warn('recordCodeExport:', error.message)
-    }
+    return await invokeProfileRpc('increment_code_export_count', {}, accessToken)
   } catch (e) {
     console.warn('recordCodeExport:', e)
+    return false
   }
 }

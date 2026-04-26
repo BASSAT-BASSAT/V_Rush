@@ -259,7 +259,7 @@ export function PipelinePage() {
     try {
       const code = pipelineToPython(parseSteps())
       await copyTextToClipboard(code)
-      void recordCodeExport()
+      void recordCodeExport(accessToken)
       setCopyNotice({ kind: 'ok', text: 'Python script copied to clipboard. Paste into a .py file.' })
     } catch (e) {
       setCopyNotice({
@@ -267,7 +267,7 @@ export function PipelinePage() {
         text: e instanceof Error ? e.message : 'Could not copy. Use Download .py below.',
       })
     }
-  }, [parseSteps])
+  }, [parseSteps, accessToken])
 
   const downloadPythonFile = useCallback(() => {
     setCopyNotice(null)
@@ -283,7 +283,7 @@ export function PipelinePage() {
       a.click()
       document.body.removeChild(a)
       URL.revokeObjectURL(url)
-      void recordCodeExport()
+      void recordCodeExport(accessToken)
       setCopyNotice({ kind: 'ok', text: 'Saved v-rush-pipeline.py' })
     } catch (e) {
       setCopyNotice({
@@ -291,7 +291,7 @@ export function PipelinePage() {
         text: e instanceof Error ? e.message : 'Download failed.',
       })
     }
-  }, [parseSteps])
+  }, [parseSteps, accessToken])
 
   const addCropFromDetection = useCallback(
     (d: DetectionItem) => {
