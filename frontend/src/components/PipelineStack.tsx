@@ -45,6 +45,10 @@ export function PipelineStack({
           {steps.map((s, idx) => {
             const meta = opsById.get(s.op)
             const help = meta?.param_help ?? {}
+            const formula =
+              meta?.detail_doc
+                ?.split(/\n+/)
+                .find((line) => line.includes('=') || line.includes('sqrt(') || line.includes('log(')) ?? null
             const isFlashing = flashKey === s.key
             const isRunning = typeof runningIdx === 'number' && runningIdx === idx
             const classes = [
@@ -114,6 +118,11 @@ export function PipelineStack({
                   </div>
                 </div>
                 {meta?.description && <p className="pipeline-stack__blurb">{meta.description}</p>}
+                {formula && (
+                  <p className="pipeline-stack__math" aria-label="Operation formula">
+                    <strong>Math:</strong> {formula}
+                  </p>
+                )}
                 {s.op === 'yolo26_detect' ? (
                   <div aria-describedby={Object.keys(help).length ? `help-${s.key}` : undefined}>
                     <span className="pipeline-stack__params-label">Parameters</span>

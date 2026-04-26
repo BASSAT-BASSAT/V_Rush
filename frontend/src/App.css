@@ -1113,6 +1113,17 @@
   color: var(--kl-text-muted);
 }
 
+.pipeline-stack__math {
+  margin: 0 0 0.5rem;
+  padding: 0.35rem 0.45rem;
+  border-radius: 6px;
+  border: 1px solid var(--kl-border);
+  background: var(--kl-help-surface);
+  font-size: 0.74rem;
+  color: var(--kl-text);
+  line-height: 1.45;
+}
+
 .pipeline-stack__head {
   display: flex;
   align-items: center;
@@ -2884,6 +2895,7 @@
   overflow: hidden;
   /* Drift the whole signal vertically for a slow ambient flow. */
   animation: wave-drift 18s ease-in-out infinite alternate;
+  animation-delay: 220ms;
 }
 
 .wave-backdrop__svg {
@@ -2895,12 +2907,14 @@
 
 .wave-backdrop__layer {
   animation: wave-scroll linear infinite;
+  animation-delay: 220ms;
   transform-origin: 0 0;
   will-change: transform;
 }
 
 .wave-backdrop__scan {
   animation: wave-scan 9s linear infinite;
+  animation-delay: 320ms;
   transform-origin: 0 0;
   filter: drop-shadow(0 0 6px rgba(167, 139, 250, 0.6));
 }
@@ -3239,6 +3253,7 @@
   display: flex;
   width: max-content;
   animation: landing-showcase-scroll 38s linear infinite;
+  animation-delay: 280ms;
   will-change: transform;
 }
 
@@ -5586,7 +5601,7 @@
   transform-box: fill-box;
   transform-origin: center bottom;
   animation: hero-hist-pulse 2.6s ease-in-out infinite;
-  animation-delay: calc(var(--i, 0) * -120ms);
+  animation-delay: calc(var(--i, 0) * -120ms + 180ms);
 }
 
 .hero-hist-bar--alt {

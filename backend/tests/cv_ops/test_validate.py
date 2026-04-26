@@ -30,3 +30,33 @@ def test_valid_chain() -> None:
         ]
     )
     assert len(v.steps) == 2
+
+
+def test_unsharp_mask_mode_validation() -> None:
+    v = validate_pipeline(
+        [
+            {
+                "op": "unsharp_mask",
+                "params": {"mode": "unknown", "amount": 10, "edge_source": "bad"},
+            }
+        ]
+    )
+    p = v.steps[0][1]
+    assert p["mode"] == "additive"
+    assert p["amount"] == 5.0
+    assert p["edge_source"] == "sobel"
+
+
+def test_frequency_band_validation() -> None:
+    v = validate_pipeline(
+        [
+            {
+                "op": "frequency_butterworth_bandpass",
+                "params": {"center_frequency": -2, "bandwidth": 0, "order": 50},
+            }
+        ]
+    )
+    p = v.steps[0][1]
+    assert p["center_frequency"] >= 1.0
+    assert p["bandwidth"] >= 1.0
+    assert p["order"] == 10

@@ -190,7 +190,10 @@ export function DatasetTray(props: DatasetTrayProps) {
     const stillExists = datasetImages.some(
       (d) => d.path === cwd || d.path.startsWith(`${cwd}/`),
     )
-    if (!stillExists) setCwd('')
+    if (!stillExists) {
+      const id = window.setTimeout(() => setCwd(''), 0)
+      return () => window.clearTimeout(id)
+    }
   }, [datasetImages, cwd])
 
   useEffect(() => {

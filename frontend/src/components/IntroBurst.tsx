@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 
 const STORAGE_KEY = 'vrush-intro-seen'
+const INTRO_RUNTIME_KEY = 'vrush-intro-running'
 const TOTAL_MS = 2400
 
 /** Read prefers-reduced-motion in a way that's safe during SSR. */
@@ -23,6 +24,14 @@ export function IntroBurst() {
     if (typeof window === 'undefined') return
     const params = new URLSearchParams(window.location.search)
     const force = params.get('intro') === '1'
+    const inRuntime = (() => {
+      try {
+        return window.sessionStorage.getItem(INTRO_RUNTIME_KEY) === '1'
+      } catch {
+        return false
+      }
+    })()
+    if (inRuntime && !force) return
     const seen = (() => {
       try {
         return window.localStorage.getItem(STORAGE_KEY) === '1'
@@ -39,20 +48,31 @@ export function IntroBurst() {
       }
       return
     }
-    setVisible(true)
+    const t0 = window.setTimeout(() => setVisible(true), 0)
+    try {
+      window.sessionStorage.setItem(INTRO_RUNTIME_KEY, '1')
+    } catch {
+      // ignore
+    }
     const t1 = window.setTimeout(() => setLeaving(true), TOTAL_MS - 450)
     const t2 = window.setTimeout(() => {
       setVisible(false)
       try {
         window.localStorage.setItem(STORAGE_KEY, '1')
+        window.sessionStorage.removeItem(INTRO_RUNTIME_KEY)
       } catch {
         // ignore
       }
     }, TOTAL_MS)
-    timers.current.push(t1, t2)
+    timers.current.push(t0, t1, t2)
     return () => {
       timers.current.forEach((id) => window.clearTimeout(id))
       timers.current = []
+      try {
+        window.sessionStorage.removeItem(INTRO_RUNTIME_KEY)
+      } catch {
+        // ignore
+      }
     }
   }, [])
 
@@ -64,6 +84,7 @@ export function IntroBurst() {
       setVisible(false)
       try {
         window.localStorage.setItem(STORAGE_KEY, '1')
+        window.sessionStorage.removeItem(INTRO_RUNTIME_KEY)
       } catch {
         // ignore
       }

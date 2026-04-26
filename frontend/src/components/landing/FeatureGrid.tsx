@@ -1,4 +1,4 @@
-import type { MouseEvent, ReactElement } from 'react'
+import { useEffect, useRef, type MouseEvent, type ReactElement } from 'react'
 import { motion, useReducedMotion } from 'motion/react'
 
 const PARENT_VARIANTS = {
@@ -63,12 +63,30 @@ export function FeatureGrid() {
   ]
 
   const reduced = useReducedMotion()
+  const rafRef = useRef<number | null>(null)
+
+  useEffect(
+    () => () => {
+      if (rafRef.current != null) {
+        window.cancelAnimationFrame(rafRef.current)
+      }
+    },
+    [],
+  )
 
   const handleMove = (e: MouseEvent<HTMLElement>) => {
     const card = e.currentTarget
-    const rect = card.getBoundingClientRect()
-    card.style.setProperty('--mx', `${e.clientX - rect.left}px`)
-    card.style.setProperty('--my', `${e.clientY - rect.top}px`)
+    const x = e.clientX
+    const y = e.clientY
+    if (rafRef.current != null) {
+      window.cancelAnimationFrame(rafRef.current)
+    }
+    rafRef.current = window.requestAnimationFrame(() => {
+      const rect = card.getBoundingClientRect()
+      card.style.setProperty('--mx', `${x - rect.left}px`)
+      card.style.setProperty('--my', `${y - rect.top}px`)
+      rafRef.current = null
+    })
   }
 
   return (

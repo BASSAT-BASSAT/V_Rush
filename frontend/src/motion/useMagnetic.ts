@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react'
+import { useCallback, useRef, type RefObject } from 'react'
 import { useMotionValue, useReducedMotion, useSpring } from 'motion/react'
 
 interface Options {
@@ -56,4 +56,12 @@ export function useMagnetic({
   }, [rawX, rawY])
 
   return { ref, x, y, onMouseMove, onMouseLeave, reduced }
+}
+
+export function useMagneticRef<T extends HTMLElement = HTMLElement>(options?: Options) {
+  const base = useMagnetic(options)
+  return {
+    ...base,
+    ref: base.ref as RefObject<T>,
+  }
 }

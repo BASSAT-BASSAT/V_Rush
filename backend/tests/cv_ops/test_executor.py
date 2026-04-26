@@ -47,3 +47,38 @@ def test_frequency_butterworth_highpass_shape() -> None:
     )
     assert out.shape == (64, 64, 3)
     assert out.dtype == np.uint8
+
+
+def test_frequency_band_filters_shape() -> None:
+    for op, params in [
+        ("frequency_ideal_bandpass", {"center_frequency": 24.0, "bandwidth": 14.0}),
+        ("frequency_ideal_bandreject", {"center_frequency": 24.0, "bandwidth": 14.0}),
+        ("frequency_gaussian_bandpass", {"center_frequency": 24.0, "bandwidth": 14.0}),
+        ("frequency_gaussian_bandreject", {"center_frequency": 24.0, "bandwidth": 14.0}),
+        (
+            "frequency_butterworth_bandpass",
+            {"center_frequency": 24.0, "bandwidth": 14.0, "order": 2},
+        ),
+        (
+            "frequency_butterworth_bandreject",
+            {"center_frequency": 24.0, "bandwidth": 14.0, "order": 2},
+        ),
+    ]:
+        out = _run_single_op(op, params)
+        assert out.shape == (64, 64, 3)
+        assert out.dtype == np.uint8
+
+
+def test_unsharp_mask_modes_shape() -> None:
+    out_add = _run_single_op(
+        "unsharp_mask",
+        {"mode": "additive", "amount": 1.2, "edge_source": "sobel"},
+    )
+    out_mul = _run_single_op(
+        "unsharp_mask",
+        {"mode": "multiplicative", "amount": 0.8, "edge_source": "laplacian"},
+    )
+    assert out_add.shape == (64, 64, 3)
+    assert out_mul.shape == (64, 64, 3)
+    assert out_add.dtype == np.uint8
+    assert out_mul.dtype == np.uint8

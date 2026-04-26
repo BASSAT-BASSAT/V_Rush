@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
+import type { EmailOtpType } from '@supabase/supabase-js'
 import { getSupabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 
@@ -13,6 +14,10 @@ const OTP_TYPES = new Set([
   'email',
   'email_change',
 ])
+
+function isEmailOtpType(value: string | null): value is EmailOtpType {
+  return typeof value === 'string' && OTP_TYPES.has(value)
+}
 
 function safeNext(raw: string | null): string {
   if (!raw) return '/studio'
@@ -83,10 +88,9 @@ export function AuthCallbackPage() {
           const { error } = await sb.auth.exchangeCodeForSession(window.location.href)
           if (error) throw error
           resolved = true
-        } else if (tokenHash && otpType && OTP_TYPES.has(otpType)) {
+        } else if (tokenHash && isEmailOtpType(otpType)) {
           const { error } = await sb.auth.verifyOtp({
             token_hash: tokenHash,
-            // @ts-expect-error Supabase narrows to its EmailOtpType union; we validated above.
             type: otpType,
           })
           if (error) throw error

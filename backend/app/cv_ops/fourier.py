@@ -63,12 +63,36 @@ def _gaussian_mask(shape: tuple[int, int], sigma: float, *, high_pass: bool) -> 
     return g
 
 
+def _gaussian_band_mask(
+    shape: tuple[int, int], center_frequency: float, bandwidth: float, *, reject: bool
+) -> np.ndarray:
+    d = _distance_grid(shape)
+    bw = max(bandwidth, 1e-6)
+    band = np.exp(-((d - center_frequency) ** 2) / (2 * bw**2)).astype(np.float32)
+    if reject:
+        return (1.0 - band).astype(np.float32)
+    return band
+
+
 def _ideal_mask(shape: tuple[int, int], d0: float, *, high_pass: bool) -> np.ndarray:
     d = _distance_grid(shape)
     m = (d <= d0).astype(np.float32)
     if high_pass:
         return (1.0 - m).astype(np.float32)
     return m
+
+
+def _ideal_band_mask(
+    shape: tuple[int, int], center_frequency: float, bandwidth: float, *, reject: bool
+) -> np.ndarray:
+    d = _distance_grid(shape)
+    half_bw = max(bandwidth / 2.0, 0.5)
+    lo = max(center_frequency - half_bw, 0.0)
+    hi = center_frequency + half_bw
+    pass_band = ((d >= lo) & (d <= hi)).astype(np.float32)
+    if reject:
+        return (1.0 - pass_band).astype(np.float32)
+    return pass_band
 
 
 def _butterworth_mask(
@@ -81,6 +105,26 @@ def _butterworth_mask(
     if high_pass:
         return (1.0 - lp).astype(np.float32)
     return lp
+
+
+def _butterworth_band_mask(
+    shape: tuple[int, int],
+    center_frequency: float,
+    bandwidth: float,
+    order: int,
+    *,
+    reject: bool,
+) -> np.ndarray:
+    d = _distance_grid(shape)
+    bw = max(bandwidth, 1e-6)
+    denom = (d**2) - (center_frequency**2)
+    denom = np.where(np.abs(denom) < 1e-6, np.sign(denom) * 1e-6 + 1e-6, denom)
+    core = np.abs((d * bw) / denom) ** (2 * order)
+    reject_mask = 1.0 / (1.0 + core)
+    reject_mask = reject_mask.astype(np.float32)
+    if reject:
+        return reject_mask
+    return (1.0 - reject_mask).astype(np.float32)
 
 
 def _apply_freq_mask(bgr: np.ndarray, mask: np.ndarray, *, oh: int, ow: int) -> np.ndarray:
@@ -141,6 +185,41 @@ def _freq_butterworth(bgr: np.ndarray, params: dict, *, high_pass: bool) -> np.n
     return _apply_freq_mask(bgr, mask, oh=oh, ow=ow)
 
 
+def _band_center(params: dict, bgr: np.ndarray) -> float:
+    max_c = max(1.0, min(bgr.shape[0], bgr.shape[1]) / 2)
+    return clamp_float(params.get("center_frequency", 30.0), 1.0, max_c)
+
+
+def _band_width(params: dict, bgr: np.ndarray) -> float:
+    max_bw = max(1.0, min(bgr.shape[0], bgr.shape[1]) / 2)
+    return clamp_float(params.get("bandwidth", 20.0), 1.0, max_bw)
+
+
+def _freq_ideal_band(bgr: np.ndarray, params: dict, *, reject: bool) -> np.ndarray:
+    center = _band_center(params, bgr)
+    width = _band_width(params, bgr)
+    oh, ow, ph, pw = _padded_shape(bgr)
+    mask = _ideal_band_mask((ph, pw), center, width, reject=reject)
+    return _apply_freq_mask(bgr, mask, oh=oh, ow=ow)
+
+
+def _freq_gaussian_band(bgr: np.ndarray, params: dict, *, reject: bool) -> np.ndarray:
+    center = _band_center(params, bgr)
+    width = _band_width(params, bgr)
+    oh, ow, ph, pw = _padded_shape(bgr)
+    mask = _gaussian_band_mask((ph, pw), center, width, reject=reject)
+    return _apply_freq_mask(bgr, mask, oh=oh, ow=ow)
+
+
+def _freq_butterworth_band(bgr: np.ndarray, params: dict, *, reject: bool) -> np.ndarray:
+    center = _band_center(params, bgr)
+    width = _band_width(params, bgr)
+    order = clamp_int(params.get("order", 2), 1, 10)
+    oh, ow, ph, pw = _padded_shape(bgr)
+    mask = _butterworth_band_mask((ph, pw), center, width, order, reject=reject)
+    return _apply_freq_mask(bgr, mask, oh=oh, ow=ow)
+
+
 def apply_frequency_ideal_lp(bgr: np.ndarray, params: dict) -> np.ndarray:
     return _freq_ideal(bgr, params, high_pass=False)
 
@@ -157,6 +236,30 @@ def apply_frequency_butterworth_hp(bgr: np.ndarray, params: dict) -> np.ndarray:
     return _freq_butterworth(bgr, params, high_pass=True)
 
 
+def apply_frequency_ideal_bandpass(bgr: np.ndarray, params: dict) -> np.ndarray:
+    return _freq_ideal_band(bgr, params, reject=False)
+
+
+def apply_frequency_ideal_bandreject(bgr: np.ndarray, params: dict) -> np.ndarray:
+    return _freq_ideal_band(bgr, params, reject=True)
+
+
+def apply_frequency_gaussian_bandpass(bgr: np.ndarray, params: dict) -> np.ndarray:
+    return _freq_gaussian_band(bgr, params, reject=False)
+
+
+def apply_frequency_gaussian_bandreject(bgr: np.ndarray, params: dict) -> np.ndarray:
+    return _freq_gaussian_band(bgr, params, reject=True)
+
+
+def apply_frequency_butterworth_bandpass(bgr: np.ndarray, params: dict) -> np.ndarray:
+    return _freq_butterworth_band(bgr, params, reject=False)
+
+
+def apply_frequency_butterworth_bandreject(bgr: np.ndarray, params: dict) -> np.ndarray:
+    return _freq_butterworth_band(bgr, params, reject=True)
+
+
 def validate_sigma_frq(p: dict) -> dict:
     return {"sigma_frequency": clamp_float(p.get("sigma_frequency", 30.0), 1.0, 2000.0)}
 
@@ -168,6 +271,21 @@ def validate_cutoff(p: dict) -> dict:
 def validate_cutoff_order(p: dict) -> dict:
     return {
         "cutoff_frequency": clamp_float(p.get("cutoff_frequency", 30.0), 1.0, 2000.0),
+        "order": clamp_int(p.get("order", 2), 1, 10),
+    }
+
+
+def validate_band(p: dict) -> dict:
+    return {
+        "center_frequency": clamp_float(p.get("center_frequency", 30.0), 1.0, 2000.0),
+        "bandwidth": clamp_float(p.get("bandwidth", 20.0), 1.0, 2000.0),
+    }
+
+
+def validate_band_order(p: dict) -> dict:
+    return {
+        "center_frequency": clamp_float(p.get("center_frequency", 30.0), 1.0, 2000.0),
+        "bandwidth": clamp_float(p.get("bandwidth", 20.0), 1.0, 2000.0),
         "order": clamp_int(p.get("order", 2), 1, 10),
     }
 
@@ -315,6 +433,96 @@ FOURIER_SPECS: list[dict] = [
             "High-pass counterpart built as 1 minus the Butterworth low-pass. Low frequencies "
             "near DC are smoothly attenuated and higher frequencies pass through. Increase "
             "order for a steeper low/high transition; decrease it for a gentler roll-off."
+        ),
+    },
+    {
+        "id": "frequency_ideal_bandpass",
+        "label": "Ideal band-pass (frequency)",
+        "category": "fourier",
+        "description": "Pass only a hard annulus around center_frequency.",
+        "default_params": {"center_frequency": 30.0, "bandwidth": 20.0},
+        "apply": apply_frequency_ideal_bandpass,
+        "validate_params": validate_band,
+        "output_kind": "spatial",
+        "detail_doc": (
+            "Builds a binary annulus mask (ring) around DC and keeps only frequencies within "
+            "that band. center_frequency is ring radius, bandwidth is ring thickness. Because "
+            "the transition is hard-edged, spatial ringing is expected."
+        ),
+    },
+    {
+        "id": "frequency_ideal_bandreject",
+        "label": "Ideal band-reject (frequency)",
+        "category": "fourier",
+        "description": "Reject a hard annulus around center_frequency.",
+        "default_params": {"center_frequency": 30.0, "bandwidth": 20.0},
+        "apply": apply_frequency_ideal_bandreject,
+        "validate_params": validate_band,
+        "output_kind": "spatial",
+        "detail_doc": (
+            "Inverse of ideal band-pass: zeros out frequencies in an annulus and keeps low + "
+            "high frequencies outside it. Useful to suppress a narrow radial band but still "
+            "prone to Gibbs ringing due to abrupt boundaries."
+        ),
+    },
+    {
+        "id": "frequency_gaussian_bandpass",
+        "label": "Gaussian band-pass (frequency)",
+        "category": "fourier",
+        "description": "Gaussian ring pass filter around center_frequency.",
+        "default_params": {"center_frequency": 30.0, "bandwidth": 20.0},
+        "apply": apply_frequency_gaussian_bandpass,
+        "validate_params": validate_band,
+        "output_kind": "spatial",
+        "detail_doc": (
+            "Uses a smooth Gaussian ring in frequency space centered at center_frequency. "
+            "bandwidth controls spread of the ring. This produces a softer transition than "
+            "ideal band-pass, usually with less ringing."
+        ),
+    },
+    {
+        "id": "frequency_gaussian_bandreject",
+        "label": "Gaussian band-reject (frequency)",
+        "category": "fourier",
+        "description": "Gaussian notch ring reject around center_frequency.",
+        "default_params": {"center_frequency": 30.0, "bandwidth": 20.0},
+        "apply": apply_frequency_gaussian_bandreject,
+        "validate_params": validate_band,
+        "output_kind": "spatial",
+        "detail_doc": (
+            "Complement of Gaussian band-pass: smoothly attenuates frequencies near the chosen "
+            "ring and keeps frequencies far from that band. Preferred over ideal reject when "
+            "you want fewer spatial artifacts."
+        ),
+    },
+    {
+        "id": "frequency_butterworth_bandpass",
+        "label": "Butterworth band-pass (frequency)",
+        "category": "fourier",
+        "description": "Butterworth ring pass with tunable order.",
+        "default_params": {"center_frequency": 30.0, "bandwidth": 20.0, "order": 2},
+        "apply": apply_frequency_butterworth_bandpass,
+        "validate_params": validate_band_order,
+        "output_kind": "spatial",
+        "detail_doc": (
+            "Band-pass Butterworth response centered at center_frequency with finite "
+            "bandwidth. order controls transition steepness: low order gives smooth roll-off, "
+            "high order approaches ideal ring behavior."
+        ),
+    },
+    {
+        "id": "frequency_butterworth_bandreject",
+        "label": "Butterworth band-reject (frequency)",
+        "category": "fourier",
+        "description": "Butterworth ring reject with tunable order.",
+        "default_params": {"center_frequency": 30.0, "bandwidth": 20.0, "order": 2},
+        "apply": apply_frequency_butterworth_bandreject,
+        "validate_params": validate_band_order,
+        "output_kind": "spatial",
+        "detail_doc": (
+            "Band-reject Butterworth filter that suppresses a ring around center_frequency. "
+            "Compared with ideal reject, order lets you tune between gentle attenuation and a "
+            "sharper notch."
         ),
     },
 ]

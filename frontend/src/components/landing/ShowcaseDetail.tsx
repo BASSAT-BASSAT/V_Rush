@@ -14,6 +14,8 @@ const STUDIO_LINKS: Record<string, { href: string; label: string }> = {
   'matcher.sift': { href: '/match', label: 'Try this matcher' },
 }
 
+let bodyScrollLockCount = 0
+
 function studioLink(op: string) {
   return STUDIO_LINKS[op] ?? { href: '/studio', label: 'Use this op in the Studio' }
 }
@@ -30,10 +32,14 @@ export function ShowcaseDetail({ item, onClose }: Props) {
     }
     window.addEventListener('keydown', onKey)
     const prev = document.body.style.overflow
+    bodyScrollLockCount += 1
     document.body.style.overflow = 'hidden'
     return () => {
       window.removeEventListener('keydown', onKey)
-      document.body.style.overflow = prev
+      bodyScrollLockCount = Math.max(0, bodyScrollLockCount - 1)
+      if (bodyScrollLockCount === 0) {
+        document.body.style.overflow = prev
+      }
     }
   }, [item, onClose])
 

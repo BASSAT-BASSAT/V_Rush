@@ -31,11 +31,39 @@ def apply_bilateral(bgr: np.ndarray, params: dict) -> np.ndarray:
     return cv2.bilateralFilter(bgr, d, sc, ss)
 
 
+def _edge_mask_u8(bgr: np.ndarray, params: dict) -> np.ndarray:
+    gray = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
+    source = str(params.get("edge_source", "sobel")).lower()
+    if source == "laplacian":
+        lap = cv2.Laplacian(gray, cv2.CV_32F, ksize=3)
+        edge = cv2.convertScaleAbs(lap)
+    elif source == "canny":
+        t1 = clamp_int(params.get("canny_t1", 50), 1, 254)
+        t2 = clamp_int(params.get("canny_t2", 150), 2, 255)
+        t2 = max(t2, t1 + 1)
+        edge = cv2.Canny(gray, t1, t2)
+    else:
+        gx = cv2.Sobel(gray, cv2.CV_32F, 1, 0, ksize=3)
+        gy = cv2.Sobel(gray, cv2.CV_32F, 0, 1, ksize=3)
+        mag = cv2.magnitude(gx, gy)
+        edge = cv2.normalize(mag, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
+    return edge
+
+
 def apply_unsharp_mask(bgr: np.ndarray, params: dict) -> np.ndarray:
-    sigma = clamp_float(params.get("sigma", 1.0), 0.1, 10.0)
+    mode = str(params.get("mode", "additive")).lower()
     amount = clamp_float(params.get("amount", 1.0), 0.0, 5.0)
-    blurred = cv2.GaussianBlur(bgr, (0, 0), sigmaX=sigma)
-    return cv2.addWeighted(bgr, 1.0 + amount, blurred, -amount, 0)
+    if mode not in {"additive", "multiplicative"}:
+        mode = "additive"
+    edge = _edge_mask_u8(bgr, params)
+    edge_bgr = cv2.cvtColor(edge, cv2.COLOR_GRAY2BGR).astype(np.float32)
+    src = bgr.astype(np.float32)
+    if mode == "multiplicative":
+        gain = 1.0 + amount * (edge_bgr / 255.0)
+        out = src * gain
+    else:
+        out = src + amount * edge_bgr
+    return np.clip(out, 0, 255).astype(np.uint8)
 
 
 LINEAR_SPECS: list[dict] = [
@@ -86,12 +114,23 @@ LINEAR_SPECS: list[dict] = [
         "id": "unsharp_mask",
         "label": "Unsharp mask",
         "category": "linear",
-        "description": "Sharpen via Gaussian unsharp mask.",
-        "default_params": {"sigma": 1.0, "amount": 1.0},
+        "description": "Sharpen original image using an edge mask blend.",
+        "default_params": {"mode": "additive", "amount": 1.0, "edge_source": "sobel"},
         "apply": apply_unsharp_mask,
         "validate_params": lambda p: {
-            "sigma": clamp_float(p.get("sigma", 1.0), 0.1, 10.0),
+            "mode": (
+                str(p.get("mode", "additive")).lower()
+                if str(p.get("mode", "additive")).lower() in {"additive", "multiplicative"}
+                else "additive"
+            ),
             "amount": clamp_float(p.get("amount", 1.0), 0.0, 5.0),
+            "edge_source": (
+                str(p.get("edge_source", "sobel")).lower()
+                if str(p.get("edge_source", "sobel")).lower() in {"sobel", "laplacian", "canny"}
+                else "sobel"
+            ),
+            "canny_t1": clamp_int(p.get("canny_t1", 50), 1, 254),
+            "canny_t2": clamp_int(p.get("canny_t2", 150), 2, 255),
         },
     },
 ]

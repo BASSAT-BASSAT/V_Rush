@@ -85,8 +85,11 @@ OP_PARAM_HELP: dict[str, dict[str, str]] = {
         "sigma_space": "How far pixels influence each other spatially.",
     },
     "unsharp_mask": {
-        "sigma": "Gaussian σ for the blurred low-frequency layer.",
-        "amount": "Sharpening strength: adds amount × (original − blur) to the image.",
+        "mode": '"additive" -> out = original + amount*edge, "multiplicative" -> out = original*(1 + amount*edge_norm).',
+        "amount": "Sharpening gain applied to the edge mask.",
+        "edge_source": '"sobel" gradient magnitude, "laplacian" second derivative, or "canny" binary edge map.',
+        "canny_t1": "Lower Canny threshold used only when edge_source='canny'.",
+        "canny_t2": "Upper Canny threshold used only when edge_source='canny'.",
     },
     # —— Edges ——
     "sobel_magnitude": {
@@ -232,6 +235,32 @@ OP_PARAM_HELP: dict[str, dict[str, str]] = {
         "cutoff_frequency": "Butterworth high-pass cutoff radius D0; larger = more low frequencies removed.",
         "order": "Filter order n (1–10); higher = sharper low-to-high transition (more ringing).",
     },
+    "frequency_ideal_bandpass": {
+        "center_frequency": "Radius of the ring center in frequency bins from DC.",
+        "bandwidth": "Ring thickness in frequency bins.",
+    },
+    "frequency_ideal_bandreject": {
+        "center_frequency": "Radius of rejected ring center in frequency bins from DC.",
+        "bandwidth": "Ring thickness to attenuate.",
+    },
+    "frequency_gaussian_bandpass": {
+        "center_frequency": "Center of Gaussian ring in frequency bins.",
+        "bandwidth": "Gaussian spread (sigma) around the ring center.",
+    },
+    "frequency_gaussian_bandreject": {
+        "center_frequency": "Center of Gaussian notch ring in frequency bins.",
+        "bandwidth": "Width of frequencies attenuated around the ring center.",
+    },
+    "frequency_butterworth_bandpass": {
+        "center_frequency": "Butterworth ring center frequency in bins.",
+        "bandwidth": "Band width around center frequency.",
+        "order": "Filter order n (1–10); higher gives steeper transition.",
+    },
+    "frequency_butterworth_bandreject": {
+        "center_frequency": "Butterworth reject ring center frequency in bins.",
+        "bandwidth": "Rejected band width around center frequency.",
+        "order": "Filter order n (1–10); higher gives steeper notch edges.",
+    },
     # —— Detection (YOLO26) ——
     "yolo26_detect": {
         "conf": "Minimum confidence in [0, 1]. Higher = fewer boxes.",
@@ -360,8 +389,9 @@ OP_DETAIL_DOC: dict[str, str] = {
         "Slower than Gaussian blur but keeps sharp boundaries."
     ),
     "unsharp_mask": (
-        "Classic sharpening: adds a multiple of (image − GaussianBlur(image)) to the image. amount "
-        "controls strength; sigma sets blur scale."
+        "Edge-mask sharpening with two selectable formulas. additive mode computes out = original + "
+        "amount * edge(original), while multiplicative mode computes out = original * (1 + amount * "
+        "edge_norm(original)). edge_source chooses Sobel, Laplacian, or Canny as the mask generator."
     ),
     "sobel_magnitude": (
         "Sobel gradients Gx, Gy on grayscale, then magnitude sqrt(Gx²+Gy²), normalized for display as BGR. "

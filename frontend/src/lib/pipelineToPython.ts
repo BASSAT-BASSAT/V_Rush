@@ -200,12 +200,32 @@ out = cv2.medianBlur(out, ${k})`
 out = cv2.bilateralFilter(out, ${d}, ${pyVal(sc)}, ${pyVal(ss)})`
     }
     case 'unsharp_mask': {
-      const sig = flt(p.sigma, 1)
+      const mode = String(p.mode ?? 'additive').toLowerCase() === 'multiplicative' ? 'multiplicative' : 'additive'
       const amt = flt(p.amount, 1)
+      const edgeSource = String(p.edge_source ?? 'sobel').toLowerCase()
+      const t1 = intg(p.canny_t1, 50)
+      const t2 = intg(p.canny_t2, 150)
       return `${hdr}
-_sig, _amt = ${pyVal(sig)}, ${pyVal(amt)}
-_blur = cv2.GaussianBlur(out, (0, 0), sigmaX=_sig)
-out = cv2.addWeighted(out, 1.0 + _amt, _blur, -_amt, 0)`
+_mode, _amt = ${pyVal(mode)}, ${pyVal(amt)}
+_edge_src = ${pyVal(edgeSource)}
+_gray = cv2.cvtColor(out, cv2.COLOR_BGR2GRAY)
+if _edge_src == "laplacian":
+    _edge = cv2.convertScaleAbs(cv2.Laplacian(_gray, cv2.CV_32F, ksize=3))
+elif _edge_src == "canny":
+    _t1 = int(np.clip(${pyVal(t1)}, 1, 254))
+    _t2 = int(np.clip(${pyVal(t2)}, _t1 + 1, 255))
+    _edge = cv2.Canny(_gray, _t1, _t2)
+else:
+    _gx = cv2.Sobel(_gray, cv2.CV_32F, 1, 0, ksize=3)
+    _gy = cv2.Sobel(_gray, cv2.CV_32F, 0, 1, ksize=3)
+    _mag = cv2.magnitude(_gx, _gy)
+    _edge = cv2.normalize(_mag, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
+_edge_bgr = cv2.cvtColor(_edge, cv2.COLOR_GRAY2BGR).astype(np.float32)
+_src = out.astype(np.float32)
+if _mode == "multiplicative":
+    out = np.clip(_src * (1.0 + _amt * (_edge_bgr / 255.0)), 0, 255).astype(np.uint8)
+else:
+    out = np.clip(_src + _amt * _edge_bgr, 0, 255).astype(np.uint8)`
     }
     case 'sobel_magnitude': {
       let k = intg(p.ksize, 3)
@@ -625,6 +645,109 @@ _shift = np.fft.fftshift(_dft)
 _cy, _cx = _h // 2, _w // 2
 _yy, _xx = np.ogrid[:_h, :_w]
 _d = np.sqrt((_xx - _cx) ** 2 + (_yy - _cy) ** 2).astype(np.float32)
+_mask = (${maskExpr}).astype(np.float32)
+_shift[:, :, 0] *= _mask
+_shift[:, :, 1] *= _mask
+_un = np.fft.ifftshift(_shift)
+_img = cv2.idft(_un)
+_img = cv2.magnitude(_img[:, :, 0], _img[:, :, 1])
+_img = cv2.normalize(_img[:_oh, :_ow], None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
+out = cv2.cvtColor(_img, cv2.COLOR_GRAY2BGR)`
+    }
+    case 'frequency_ideal_bandpass':
+    case 'frequency_ideal_bandreject': {
+      const c = flt(p.center_frequency, 30)
+      const bw = flt(p.bandwidth, 20)
+      const reject = op === 'frequency_ideal_bandreject'
+      const maskExpr = reject
+        ? '1.0 - (((_d >= _lo) & (_d <= _hi)).astype(np.float32))'
+        : '(((_d >= _lo) & (_d <= _hi)).astype(np.float32))'
+      return `${hdr}
+_c = ${pyVal(c)}
+_bw = ${pyVal(bw)}
+_max_c = max(1.0, min(out.shape[0], out.shape[1]) / 2)
+_c = float(np.clip(_c, 1.0, _max_c))
+_bw = float(np.clip(_bw, 1.0, _max_c))
+_half = max(_bw / 2.0, 0.5)
+_lo = max(_c - _half, 0.0)
+_hi = _c + _half
+_gray = cv2.cvtColor(out, cv2.COLOR_BGR2GRAY).astype(np.float32)
+_oh, _ow = _gray.shape
+_pad = cv2.copyMakeBorder(_gray, 0, cv2.getOptimalDFTSize(_oh) - _oh, 0, cv2.getOptimalDFTSize(_ow) - _ow, cv2.BORDER_CONSTANT)
+_h, _w = _pad.shape
+_dft = cv2.dft(_pad, flags=cv2.DFT_COMPLEX_OUTPUT)
+_shift = np.fft.fftshift(_dft)
+_cy, _cx = _h // 2, _w // 2
+_yy, _xx = np.ogrid[:_h, :_w]
+_d = np.sqrt((_xx - _cx) ** 2 + (_yy - _cy) ** 2).astype(np.float32)
+_mask = (${maskExpr}).astype(np.float32)
+_shift[:, :, 0] *= _mask
+_shift[:, :, 1] *= _mask
+_un = np.fft.ifftshift(_shift)
+_img = cv2.idft(_un)
+_img = cv2.magnitude(_img[:, :, 0], _img[:, :, 1])
+_img = cv2.normalize(_img[:_oh, :_ow], None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
+out = cv2.cvtColor(_img, cv2.COLOR_GRAY2BGR)`
+    }
+    case 'frequency_gaussian_bandpass':
+    case 'frequency_gaussian_bandreject': {
+      const c = flt(p.center_frequency, 30)
+      const bw = flt(p.bandwidth, 20)
+      const reject = op === 'frequency_gaussian_bandreject'
+      const maskExpr = reject
+        ? '1.0 - np.exp(-((_d - _c) ** 2) / (2 * _bw ** 2))'
+        : 'np.exp(-((_d - _c) ** 2) / (2 * _bw ** 2))'
+      return `${hdr}
+_c = ${pyVal(c)}
+_bw = ${pyVal(bw)}
+_max_c = max(1.0, min(out.shape[0], out.shape[1]) / 2)
+_c = float(np.clip(_c, 1.0, _max_c))
+_bw = float(np.clip(_bw, 1.0, _max_c))
+_gray = cv2.cvtColor(out, cv2.COLOR_BGR2GRAY).astype(np.float32)
+_oh, _ow = _gray.shape
+_pad = cv2.copyMakeBorder(_gray, 0, cv2.getOptimalDFTSize(_oh) - _oh, 0, cv2.getOptimalDFTSize(_ow) - _ow, cv2.BORDER_CONSTANT)
+_h, _w = _pad.shape
+_dft = cv2.dft(_pad, flags=cv2.DFT_COMPLEX_OUTPUT)
+_shift = np.fft.fftshift(_dft)
+_cy, _cx = _h // 2, _w // 2
+_yy, _xx = np.ogrid[:_h, :_w]
+_d = np.sqrt((_xx - _cx) ** 2 + (_yy - _cy) ** 2).astype(np.float32)
+_mask = (${maskExpr}).astype(np.float32)
+_shift[:, :, 0] *= _mask
+_shift[:, :, 1] *= _mask
+_un = np.fft.ifftshift(_shift)
+_img = cv2.idft(_un)
+_img = cv2.magnitude(_img[:, :, 0], _img[:, :, 1])
+_img = cv2.normalize(_img[:_oh, :_ow], None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
+out = cv2.cvtColor(_img, cv2.COLOR_GRAY2BGR)`
+    }
+    case 'frequency_butterworth_bandpass':
+    case 'frequency_butterworth_bandreject': {
+      const c = flt(p.center_frequency, 30)
+      const bw = flt(p.bandwidth, 20)
+      const n = intg(p.order, 2)
+      const reject = op === 'frequency_butterworth_bandreject'
+      const maskExpr = reject
+        ? '1.0 / (1.0 + (np.abs((_d * _bw) / _den) ** (2 * _n)))'
+        : '1.0 - (1.0 / (1.0 + (np.abs((_d * _bw) / _den) ** (2 * _n))))'
+      return `${hdr}
+_c = ${pyVal(c)}
+_bw = ${pyVal(bw)}
+_n = int(np.clip(${pyVal(n)}, 1, 10))
+_max_c = max(1.0, min(out.shape[0], out.shape[1]) / 2)
+_c = float(np.clip(_c, 1.0, _max_c))
+_bw = float(np.clip(_bw, 1.0, _max_c))
+_gray = cv2.cvtColor(out, cv2.COLOR_BGR2GRAY).astype(np.float32)
+_oh, _ow = _gray.shape
+_pad = cv2.copyMakeBorder(_gray, 0, cv2.getOptimalDFTSize(_oh) - _oh, 0, cv2.getOptimalDFTSize(_ow) - _ow, cv2.BORDER_CONSTANT)
+_h, _w = _pad.shape
+_dft = cv2.dft(_pad, flags=cv2.DFT_COMPLEX_OUTPUT)
+_shift = np.fft.fftshift(_dft)
+_cy, _cx = _h // 2, _w // 2
+_yy, _xx = np.ogrid[:_h, :_w]
+_d = np.sqrt((_xx - _cx) ** 2 + (_yy - _cy) ** 2).astype(np.float32)
+_den = (_d ** 2) - (_c ** 2)
+_den = np.where(np.abs(_den) < 1e-6, np.sign(_den) * 1e-6 + 1e-6, _den)
 _mask = (${maskExpr}).astype(np.float32)
 _shift[:, :, 0] *= _mask
 _shift[:, :, 1] *= _mask

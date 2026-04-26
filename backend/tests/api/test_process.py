@@ -28,6 +28,8 @@ def test_get_ops() -> None:
     ids = {o["id"] for o in data["ops"]}
     assert "gaussian_blur" in ids
     assert "dft_magnitude_spectrum" in ids
+    assert "frequency_ideal_bandpass" in ids
+    assert "frequency_butterworth_bandreject" in ids
     assert "yolo26_detect" in ids
 
 
