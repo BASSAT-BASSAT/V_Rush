@@ -7,7 +7,6 @@ import json
 import os
 from typing import Any
 
-import cv2
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 
 from app.auth_deps import require_user
@@ -15,6 +14,7 @@ from app.config import settings
 from app.cv_ops.executor import execute_pipeline
 from app.cv_ops.registry import list_ops_public
 from app.cv_ops.validate import validate_pipeline
+from app.processing.encode_image import encode_bgr_for_download
 from app.processing.io_image import ImageDecodeError, decode_image_bytes
 from app.processing.stats import image_stats
 from app.schemas import DetectionItem, ImageStats, OpInfo, OpsListResponse, ProcessResponse
@@ -95,10 +95,15 @@ async def process_image(
         raise
     h, w = result.image_bgr.shape[:2]
 
-    ok, buf = cv2.imencode(".png", result.image_bgr)
-    if not ok:
-        raise HTTPException(status_code=500, detail="Failed to encode output image")
-    b64 = base64.b64encode(buf.tobytes()).decode("ascii")
+    try:
+        out_bytes, out_mime = encode_bgr_for_download(
+            result.image_bgr,
+            filename=file.filename,
+            content_type=file.content_type,
+        )
+    except RuntimeError:
+        raise HTTPException(status_code=500, detail="Failed to encode output image") from None
+    b64 = base64.b64encode(out_bytes).decode("ascii")
 
     applied = [{"op": oid, "params": dict(params)} for oid, params in validated.steps]
 
@@ -107,7 +112,7 @@ async def process_image(
 
     return ProcessResponse(
         image_base64=b64,
-        mime="image/png",
+        mime=out_mime,
         warnings=result.warnings,
         width=w,
         height=h,

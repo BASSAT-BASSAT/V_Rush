@@ -5,7 +5,6 @@ from __future__ import annotations
 import base64
 import re
 
-import cv2
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
 
 from app.auth_deps import require_user
@@ -19,6 +18,7 @@ from app.integrations.kaggle import (
     list_dataset_files,
     search_datasets,
 )
+from app.processing.encode_image import encode_bgr_for_download
 from app.processing.io_image import ImageDecodeError, decode_image_bytes
 from app.schemas import (
     KaggleDatasetSummary,
@@ -93,7 +93,7 @@ def get_file(
     _user_id: str = Depends(require_user),
     creds: KaggleCreds = Depends(_kaggle_creds),
 ) -> KaggleImageResponse:
-    """Download one image file and return it as base64 PNG.
+    """Download one image file and return it as base64 (JPEG/WebP/PNG when supported).
 
     The bytes are re-decoded through ``decode_image_bytes`` to enforce the same
     size / dimension limits as the rest of the API.
@@ -127,14 +127,15 @@ def get_file(
             detail=f"Selected file is not a supported image: {e}",
         ) from e
 
-    ok, buf = cv2.imencode(".png", decoded.bgr)
-    if not ok:
-        raise HTTPException(status_code=500, detail="Failed to encode image as PNG")
-    b64 = base64.b64encode(buf.tobytes()).decode("ascii")
+    try:
+        out_bytes, out_mime = encode_bgr_for_download(decoded.bgr, filename=path, content_type=None)
+    except RuntimeError:
+        raise HTTPException(status_code=500, detail="Failed to encode image") from None
+    b64 = base64.b64encode(out_bytes).decode("ascii")
 
     return KaggleImageResponse(
         image_base64=b64,
-        mime="image/png",
+        mime=out_mime,
         width=decoded.width,
         height=decoded.height,
         path=path,

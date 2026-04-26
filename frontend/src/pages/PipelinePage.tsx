@@ -23,6 +23,16 @@ function newKey() {
   return crypto.randomUUID()
 }
 
+/** Suggested download filename: extension matches API ``mime`` (same family as uploaded image when possible). */
+function downloadNameForProcessedOutput(file: File | null, mime: string): string {
+  const ext = mime === 'image/jpeg' ? '.jpg' : mime === 'image/webp' ? '.webp' : '.png'
+  if (file?.name) {
+    const stem = file.name.replace(/\.[^/.]+$/, '')
+    if (stem.length > 0) return `${stem}-v-rush${ext}`
+  }
+  return `v-rush-output${ext}`
+}
+
 type WorkspaceTab = 'ops' | 'pipeline'
 
 export function PipelinePage() {
@@ -426,7 +436,11 @@ export function PipelinePage() {
                 Clear
               </button>
               {result && (
-                <a className="btn btn--ghost" href={afterSrc ?? '#'} download="v-rush-output.png">
+                <a
+                  className="btn btn--ghost"
+                  href={afterSrc ?? '#'}
+                  download={downloadNameForProcessedOutput(file, result.mime)}
+                >
                   Download image
                 </a>
               )}
