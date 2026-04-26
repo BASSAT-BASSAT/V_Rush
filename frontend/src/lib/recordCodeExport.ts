@@ -1,6 +1,6 @@
 import { invokeProfileRpc } from './supabaseProfileRpc'
 
-/** Bump ``profiles.code_export_count`` (Copy / Download Python). */
+/** Bump ``profiles.code_export_count`` (Copy JSON, Copy Python, or Download .py). */
 export async function recordCodeExport(accessToken?: string | null): Promise<boolean> {
   const url = import.meta.env.VITE_SUPABASE_URL?.trim()
   if (!url) return false
@@ -9,6 +9,19 @@ export async function recordCodeExport(accessToken?: string | null): Promise<boo
     return await invokeProfileRpc('increment_code_export_count', {}, accessToken)
   } catch (e) {
     console.warn('recordCodeExport:', e)
+    return false
+  }
+}
+
+/** Bump ``profiles.studio_image_upload_count`` when the user picks a new image. */
+export async function recordStudioImageUpload(accessToken?: string | null): Promise<boolean> {
+  const url = import.meta.env.VITE_SUPABASE_URL?.trim()
+  if (!url) return false
+
+  try {
+    return await invokeProfileRpc('increment_studio_image_upload_count', {}, accessToken)
+  } catch (e) {
+    console.warn('recordStudioImageUpload:', e)
     return false
   }
 }

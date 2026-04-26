@@ -11,6 +11,7 @@ type ProfileRow = {
   phone: string | null
   bio: string | null
   code_export_count: number | null
+  studio_image_upload_count: number | null
   created_at: string | null
 }
 
@@ -51,7 +52,7 @@ export function ProfilePage() {
     const sb = getSupabase()
     void sb
       .from('profiles')
-      .select('id, email, display_name, phone, bio, code_export_count, created_at')
+      .select('id, email, display_name, phone, bio, code_export_count, studio_image_upload_count, created_at')
       .eq('id', session.user.id)
       .single()
       .then(({ data, error: e }) => {
@@ -97,6 +98,7 @@ export function ProfilePage() {
   )
   const joined = useMemo(() => formatJoined(row?.created_at), [row])
   const exportCount = row?.code_export_count ?? 0
+  const uploadCount = row?.studio_image_upload_count ?? 0
   const bioCount = bio.length
 
   if (bypass) return null
@@ -129,8 +131,12 @@ export function ProfilePage() {
 
         <div className="profile-page__stats" role="list">
           <div className="profile-page__stat" role="listitem">
+            <span className="profile-page__stat-value">{uploadCount}</span>
+            <span className="profile-page__stat-label">Images loaded</span>
+          </div>
+          <div className="profile-page__stat" role="listitem">
             <span className="profile-page__stat-value">{exportCount}</span>
-            <span className="profile-page__stat-label">Python exports</span>
+            <span className="profile-page__stat-label">Pipeline exports</span>
           </div>
           <div className="profile-page__stat" role="listitem">
             <span className="profile-page__stat-value">{bioCount}</span>
@@ -173,14 +179,26 @@ export function ProfilePage() {
           </label>
 
           <label className="profile-page__field">
-            <span className="profile-page__label">Python code exports</span>
+            <span className="profile-page__label">Images loaded in Studio</span>
+            <input
+              type="text"
+              className="profile-page__input"
+              value={String(uploadCount)}
+              readOnly
+              disabled
+              title="Times you chose a new image (drop, tray, or open from Datasets)"
+            />
+          </label>
+
+          <label className="profile-page__field">
+            <span className="profile-page__label">Pipeline exports</span>
             <input
               type="text"
               className="profile-page__input"
               value={String(exportCount)}
               readOnly
               disabled
-              title="Times you copied or downloaded pipeline Python from the main page"
+              title="Copy JSON, Copy Python, or Download .py from Export pipeline"
             />
           </label>
         </div>

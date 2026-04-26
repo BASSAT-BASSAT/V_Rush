@@ -6,7 +6,7 @@ import { isMlOp } from '../cv/mlOps'
 import { bboxToCropFraction } from '../lib/bboxCrop'
 import { copyTextToClipboard } from '../lib/clipboard'
 import { pipelineToPython } from '../lib/pipelineToPython'
-import { recordCodeExport } from '../lib/recordCodeExport'
+import { recordCodeExport, recordStudioImageUpload } from '../lib/recordCodeExport'
 import { BeforeAfter } from '../components/BeforeAfter'
 import { DatasetTray } from '../components/DatasetTray'
 import { FileDrop } from '../components/FileDrop'
@@ -94,13 +94,21 @@ export function PipelinePage() {
     [samStepHandle],
   )
 
+  const assignStudioFile = useCallback(
+    (next: File | null) => {
+      setFile(next)
+      if (next) void recordStudioImageUpload(accessToken)
+    },
+    [accessToken],
+  )
+
   useEffect(() => {
     const state = location.state as PreloadedImageState | null
     if (!state || !state.base64 || !state.filename) return
     const f = base64ToFile(state.base64, state.filename, state.mime || 'image/png')
-    setFile(f)
+    assignStudioFile(f)
     window.history.replaceState({}, '')
-  }, [location.state])
+  }, [location.state, assignStudioFile])
 
   useEffect(() => {
     // A brand-new source should wipe the previous pipeline's output so the
@@ -248,11 +256,12 @@ export function PipelinePage() {
     setCopyNotice(null)
     try {
       await copyTextToClipboard(JSON.stringify(parseSteps(), null, 2))
+      void recordCodeExport(accessToken)
       setCopyNotice({ kind: 'ok', text: 'Pipeline JSON copied to clipboard.' })
     } catch {
       setCopyNotice({ kind: 'err', text: 'Could not copy JSON. Try Download .py or use a secure URL (https).' })
     }
-  }, [parseSteps])
+  }, [parseSteps, accessToken])
 
   const copyPythonExport = useCallback(async () => {
     setCopyNotice(null)
@@ -350,7 +359,7 @@ export function PipelinePage() {
                 <button
                   type="button"
                   className="btn btn--ghost btn--sm dock-panel__title-action"
-                  onClick={() => setFile(null)}
+                  onClick={() => assignStudioFile(null)}
                   disabled={loadingRun}
                   title="Clear the current source image"
                 >
@@ -361,10 +370,10 @@ export function PipelinePage() {
             <p className="panel-hint panel-hint--tight">
               Upload a single image or a whole folder — then click any tile below to load it.
             </p>
-            <FileDrop onFile={setFile} disabled={loadingRun} />
+            <FileDrop onFile={assignStudioFile} disabled={loadingRun} />
             <DatasetTray
               mode="studio"
-              onPick={setFile}
+              onPick={assignStudioFile}
               activeFile={file}
               disabled={loadingRun}
             />
