@@ -8,6 +8,7 @@ import { copyTextToClipboard } from '../lib/clipboard'
 import { pipelineToPython } from '../lib/pipelineToPython'
 import { recordCodeExport, recordStudioImageUpload } from '../lib/recordCodeExport'
 import { parseSamParamsJson } from '../lib/samParams'
+import { dataUrlToVrushDownloadFile } from '../lib/samMaskCompose'
 import { BeforeAfter } from '../components/BeforeAfter'
 import { DatasetTray } from '../components/DatasetTray'
 import { FileDrop } from '../components/FileDrop'
@@ -52,6 +53,8 @@ export function PipelineWorkspaceLayout() {
   const [procError, setProcError] = useState<string | null>(null)
   const [result, setResult] = useState<ProcessResponse | null>(null)
   const [afterSrc, setAfterSrc] = useState<string | null>(null)
+  /** Composed MobileSAM preview after mask brush / cut — same pixels as the After pane; null when not refining. */
+  const [refinedAfterDataUrl, setRefinedAfterDataUrl] = useState<string | null>(null)
   const [copyNotice, setCopyNotice] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null)
   const [workspaceTab, setWorkspaceTab] = useState<WorkspaceTab>('ops')
   const [flashKey, setFlashKey] = useState<string | null>(null)
@@ -154,6 +157,7 @@ export function PipelineWorkspaceLayout() {
   useEffect(() => {
     if (!result?.image_base64) {
       setAfterSrc(null)
+      setRefinedAfterDataUrl(null)
       return
     }
     const mime = result.mime || 'image/png'
@@ -336,6 +340,42 @@ export function PipelineWorkspaceLayout() {
     [assignStudioFile],
   )
 
+  const onRefinedAfterDataUrlChange = useCallback((url: string | null) => {
+    setRefinedAfterDataUrl(url)
+  }, [])
+
+  const downloadPipelineOutputImage = useCallback(async () => {
+    if (!result) return
+    try {
+      if (refinedAfterDataUrl) {
+        const f = await dataUrlToVrushDownloadFile(refinedAfterDataUrl, file)
+        const url = URL.createObjectURL(f)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = f.name
+        a.rel = 'noopener'
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        URL.revokeObjectURL(url)
+        return
+      }
+      if (!afterSrc) return
+      const a = document.createElement('a')
+      a.href = afterSrc
+      a.download = downloadNameForProcessedOutput(file, result.mime)
+      a.rel = 'noopener'
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+    } catch (e) {
+      setCopyNotice({
+        kind: 'error',
+        text: e instanceof Error ? e.message : 'Download failed.',
+      })
+    }
+  }, [result, refinedAfterDataUrl, afterSrc, file])
+
   const detections = result?.detections ?? []
 
   return (
@@ -429,7 +469,9 @@ export function PipelineWorkspaceLayout() {
               samOutputMode={samOutputMode}
               resultWidth={result?.width ?? null}
               resultHeight={result?.height ?? null}
+              sourceFile={file}
               onApplyRefinedImage={onApplyRefinedImage}
+              onRefinedAfterDataUrlChange={onRefinedAfterDataUrlChange}
             />
 
             <MotionToast show={Boolean(procError)} kind="error">
@@ -467,13 +509,14 @@ export function PipelineWorkspaceLayout() {
                 Clear
               </button>
               {result && (
-                <a
+                <button
+                  type="button"
                   className="btn btn--ghost"
-                  href={afterSrc ?? '#'}
-                  download={downloadNameForProcessedOutput(file, result.mime)}
+                  disabled={!afterSrc && !refinedAfterDataUrl}
+                  onClick={() => void downloadPipelineOutputImage()}
                 >
                   Download image
-                </a>
+                </button>
               )}
               <details className="export-menu">
                 <summary className="export-menu__summary btn btn--ghost">Export pipeline</summary>
@@ -598,8 +641,8 @@ export function PipelineWorkspaceLayout() {
                     <Link to="/studio">Local</Link> for filtering, edges, morphology, and K-Means / Watershed / GrabCut.
                     {' '}
                     After MobileSAM, use <strong>Manual segmentation</strong>: draw a black loop, then{' '}
-                    <strong>Cut outside line</strong> to drop everything outside it from the mask;{' '}
-                    <strong>Use as source</strong> continues with the refined result.
+                    <strong>Cut outside line</strong> or <strong>Cut inside line</strong> to trim the mask;{' '}
+                    <strong>Use as source</strong> continues with the refined result (same file extension as your upload).
                   </p>
                 )}
                 {hasYoloStep && (

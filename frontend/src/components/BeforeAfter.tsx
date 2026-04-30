@@ -6,9 +6,9 @@ import {
   type SamOutputMode,
   type SamPromptType,
 } from '../lib/samParams'
-import { cutMaskOutsideBlackLine } from '../lib/cutOutsideStroke'
+import { cutMaskInsideBlackLine, cutMaskOutsideBlackLine } from '../lib/cutOutsideStroke'
 import {
-  canvasToPngFile,
+  canvasToSourceAlignedFile,
   composeMobileSamPreview,
   drawDataUrlToCanvas,
   loadImageElement,
@@ -40,7 +40,11 @@ interface Props {
   samOutputMode?: SamOutputMode | null
   resultWidth?: number | null
   resultHeight?: number | null
+  /** Current studio source file — used so “Use as source” keeps the same filename extension / encoding. */
+  sourceFile?: File | null
   onApplyRefinedImage?: (file: File) => void
+  /** When manual mask refinement is active, the composed preview (PNG data URL); null otherwise — for download. */
+  onRefinedAfterDataUrlChange?: (dataUrl: string | null) => void
 }
 
 export function BeforeAfter({
@@ -53,7 +57,9 @@ export function BeforeAfter({
   samOutputMode = null,
   resultWidth = null,
   resultHeight = null,
+  sourceFile = null,
   onApplyRefinedImage,
+  onRefinedAfterDataUrlChange,
 }: Props) {
   const [mode, setMode] = useState<'split' | 'slider'>('split')
   const [slider, setSlider] = useState(50)
@@ -266,6 +272,10 @@ export function BeforeAfter({
     }
   }, [ensureOffscreenCanvases, samOutputMode])
 
+  useEffect(() => {
+    onRefinedAfterDataUrlChange?.(refineAvailable ? refinedAfterUrl : null)
+  }, [refineAvailable, refinedAfterUrl, onRefinedAfterDataUrlChange])
+
   const initialUndoSeededRef = useRef(false)
 
   useEffect(() => {
@@ -436,6 +446,22 @@ export function BeforeAfter({
     recomposeFromMasks()
   }, [ensureOffscreenCanvases, ensureBrushOverlayFit, pushUndoBrushState, recomposeFromMasks])
 
+  const applyCutInsideLine = useCallback(() => {
+    setCutHint(null)
+    const c = ensureOffscreenCanvases()
+    const oc = brushOverlayRef.current
+    if (!c || !oc) return
+    const res = cutMaskInsideBlackLine(c.mask, oc)
+    if (!res.ok) {
+      setCutHint(res.reason)
+      return
+    }
+    ensureBrushOverlayFit()
+    oc.getContext('2d')?.clearRect(0, 0, oc.width, oc.height)
+    pushUndoBrushState()
+    recomposeFromMasks()
+  }, [ensureOffscreenCanvases, ensureBrushOverlayFit, pushUndoBrushState, recomposeFromMasks])
+
   useEffect(() => {
     if (!cutHint) return
     const t = window.setTimeout(() => setCutHint(null), 8000)
@@ -559,12 +585,12 @@ export function BeforeAfter({
         const url = composeMobileSamPreview(mask, mask, 'mask')
         await drawDataUrlToCanvas(url, out)
       }
-      const f = await canvasToPngFile(out, 'refined-mask.png')
+      const f = await canvasToSourceAlignedFile(out, sourceFile ?? null)
       onApplyRefinedImage(f)
     } catch {
       /* toast from parent if needed */
     }
-  }, [onApplyRefinedImage, samOutputMode, ensureOffscreenCanvases])
+  }, [onApplyRefinedImage, samOutputMode, sourceFile, ensureOffscreenCanvases])
 
   const displayAfterSrc = refinedAfterUrl ?? afterSrc
 
@@ -714,10 +740,10 @@ export function BeforeAfter({
         <div className="before-after__mask-refine-bar" role="region" aria-label="Mask refinement">
           <span className="before-after__mask-refine-title">Manual segmentation</span>
           <span className="before-after__mask-refine-sub">
-            Draw a closed <strong>black outline</strong> around what you want to keep, then click{' '}
-            <strong>Cut outside line</strong> — everything outside that line is removed from the mask (like a
-            lasso). Close small gaps in the loop so the inside does not leak to the edge. Pan/zoom stays off
-            while brushing.
+            Draw a closed <strong>black outline</strong>. <strong>Cut outside line</strong> removes everything
+            outside the loop from the mask; <strong>Cut inside line</strong> removes everything inside (like
+            punching a hole). Close small gaps so regions do not leak to the edge. Pan/zoom stays off while
+            brushing.
           </span>
           <label className="before-after__mask-refine-field">
             <span>Brush</span>
@@ -731,6 +757,9 @@ export function BeforeAfter({
           </label>
           <button type="button" className="btn btn--primary btn--sm" onClick={applyCutOutsideLine}>
             Cut outside line
+          </button>
+          <button type="button" className="btn btn--primary btn--sm" onClick={applyCutInsideLine}>
+            Cut inside line
           </button>
           <button type="button" className="btn btn--ghost btn--sm" onClick={undoMask}>
             Undo

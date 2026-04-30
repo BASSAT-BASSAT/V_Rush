@@ -104,3 +104,88 @@ export async function canvasToPngFile(canvas: HTMLCanvasElement, filename: strin
   if (!blob) throw new Error('Could not encode PNG')
   return new File([blob], filename, { type: 'image/png' })
 }
+
+type RasterMime = 'image/png' | 'image/jpeg' | 'image/webp'
+
+type SourceAlignedNameSuffix = '-refined' | '-v-rush'
+
+/**
+ * Filename + raster MIME aligned to the uploaded source (JPEG / WebP / PNG),
+ * with either `-refined` (replace source) or `-v-rush` (pipeline download) before the extension.
+ */
+export function exportFilenameAndMimeAlignedToSource(
+  sourceFile: File | null,
+  nameSuffix: SourceAlignedNameSuffix,
+): { filename: string; mime: RasterMime; quality?: number } {
+  const name = sourceFile?.name ?? ''
+  const stemFromFile = name.replace(/\.[^/.]+$/, '')
+  const stem =
+    stemFromFile.length > 0
+      ? stemFromFile
+      : nameSuffix === '-refined'
+        ? 'refined'
+        : 'v-rush-output'
+  const extMatch = /\.([^.]+)$/i.exec(name)
+  const extRaw = extMatch ? extMatch[1].toLowerCase() : ''
+
+  const type = sourceFile?.type ?? ''
+  const isJpeg =
+    extRaw === 'jpg' || extRaw === 'jpeg' || type === 'image/jpeg' || type === 'image/jpg'
+  if (isJpeg) {
+    const useJpegExt = extRaw === 'jpeg' || /\.jpeg$/i.test(name)
+    return {
+      filename: `${stem}${nameSuffix}${useJpegExt ? '.jpeg' : '.jpg'}`,
+      mime: 'image/jpeg',
+      quality: 0.92,
+    }
+  }
+  if (extRaw === 'webp' || type === 'image/webp') {
+    return { filename: `${stem}${nameSuffix}.webp`, mime: 'image/webp', quality: 0.92 }
+  }
+  return { filename: `${stem}${nameSuffix}.png`, mime: 'image/png' }
+}
+
+async function canvasToRasterFile(
+  canvas: HTMLCanvasElement,
+  spec: { filename: string; mime: RasterMime; quality?: number },
+): Promise<File> {
+  const { filename, mime, quality } = spec
+  const blob = await new Promise<Blob | null>((resolve) => {
+    if (mime === 'image/png') {
+      canvas.toBlob((b) => resolve(b), 'image/png')
+    } else {
+      canvas.toBlob((b) => resolve(b), mime, quality)
+    }
+  })
+  if (!blob) throw new Error(`Could not encode ${mime}`)
+  return new File([blob], filename, { type: mime })
+}
+
+/**
+ * Encode canvas to a raster file using the same extension (and JPEG/WebP/PNG encoding)
+ * as `sourceFile` when possible — used when replacing the studio source after mask refine.
+ */
+export async function canvasToSourceAlignedFile(
+  canvas: HTMLCanvasElement,
+  sourceFile: File | null,
+): Promise<File> {
+  return canvasToRasterFile(canvas, exportFilenameAndMimeAlignedToSource(sourceFile, '-refined'))
+}
+
+/**
+ * Decode a PNG (or other) data URL, re-encode to match the studio source file type, and use
+ * the `stem-v-rush` naming pattern — for “Download image” after mask refinement.
+ */
+export async function dataUrlToVrushDownloadFile(
+  dataUrl: string,
+  sourceFile: File | null,
+): Promise<File> {
+  const img = await loadImageElement(dataUrl)
+  const canvas = document.createElement('canvas')
+  canvas.width = img.naturalWidth
+  canvas.height = img.naturalHeight
+  const ctx = canvas.getContext('2d')
+  if (!ctx) throw new Error('Could not create canvas')
+  ctx.drawImage(img, 0, 0)
+  return canvasToRasterFile(canvas, exportFilenameAndMimeAlignedToSource(sourceFile, '-v-rush'))
+}

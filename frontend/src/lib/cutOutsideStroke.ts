@@ -122,3 +122,64 @@ export function cutMaskOutsideBlackLine(
   mctx.putImageData(md, 0, 0)
   return { ok: true }
 }
+
+/**
+ * Same stroke interpretation as {@link cutMaskOutsideBlackLine}, but zeros the mask
+ * inside the closed black line (enclosed region), not outside.
+ */
+export function cutMaskInsideBlackLine(
+  maskCanvas: HTMLCanvasElement,
+  overlayCanvas: HTMLCanvasElement,
+): CutOutsideResult {
+  const mw = maskCanvas.width
+  const mh = maskCanvas.height
+  const ow = overlayCanvas.width
+  const oh = overlayCanvas.height
+  if (mw < 2 || mh < 2) return { ok: false, reason: 'Mask is not ready.' }
+  if (ow < 2 || oh < 2) return { ok: false, reason: 'Preview is not ready — run the pipeline first.' }
+
+  const tmp = document.createElement('canvas')
+  tmp.width = mw
+  tmp.height = mh
+  const t = tmp.getContext('2d')
+  if (!t) return { ok: false, reason: 'Could not create scratch canvas.' }
+
+  t.fillStyle = '#ffffff'
+  t.fillRect(0, 0, mw, mh)
+  t.drawImage(overlayCanvas, 0, 0, ow, oh, 0, 0, mw, mh)
+  const d = t.getImageData(0, 0, mw, mh).data
+
+  const wall = new Uint8Array(mw * mh)
+  let anyStroke = false
+  for (let i = 0; i < mw * mh; i++) {
+    const o = i * 4
+    const r = d[o]
+    const g = d[o + 1]
+    const b = d[o + 2]
+    const a = d[o + 3]
+    if (a > 40 && r + g + b < 220) {
+      wall[i] = 1
+      anyStroke = true
+    }
+  }
+  if (!anyStroke) {
+    return { ok: false, reason: 'Draw a black outline around what you want to remove, then apply again.' }
+  }
+
+  const wallThick = dilateBinary(wall, mw, mh, 2)
+  const outside = floodOutsideFromBorder(wallThick, mw, mh)
+
+  const mctx = maskCanvas.getContext('2d')
+  if (!mctx) return { ok: false, reason: 'Could not read mask.' }
+  const md = mctx.getImageData(0, 0, mw, mh)
+  for (let i = 0; i < mw * mh; i++) {
+    if (outside[i] || wallThick[i]) continue
+    const o = i * 4
+    md.data[o] = 0
+    md.data[o + 1] = 0
+    md.data[o + 2] = 0
+    md.data[o + 3] = 255
+  }
+  mctx.putImageData(md, 0, 0)
+  return { ok: true }
+}
