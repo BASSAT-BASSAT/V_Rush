@@ -1637,6 +1637,9 @@
 
 .zoom-frame--off {
   position: relative;
+  overflow: hidden;
+  cursor: default;
+  touch-action: auto;
 }
 
 .zoom-frame__inner {
@@ -4227,6 +4230,69 @@
   color: var(--kl-accent);
   font-size: 0.78rem;
   letter-spacing: 0.01em;
+}
+
+.before-after__mask-refine-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  padding: 0.55rem 0.75rem;
+  margin: 0.25rem 0 0.45rem;
+  border-radius: 10px;
+  border: 1px solid rgba(34, 197, 94, 0.35);
+  background:
+    linear-gradient(90deg, rgba(34, 197, 94, 0.1), rgba(59, 130, 246, 0.08) 70%, transparent 100%),
+    var(--kl-surface);
+}
+
+.before-after__mask-refine-title {
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: var(--kl-text);
+}
+
+.before-after__mask-refine-sub {
+  flex: 1 1 200px;
+  font-size: 0.76rem;
+  color: var(--kl-text-dim);
+  line-height: 1.35;
+}
+
+.before-after__mask-refine-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.78rem;
+  color: var(--kl-text);
+}
+
+.before-after__mask-refine-field input[type='range'] {
+  width: 120px;
+}
+
+.before-after__mask-refine-hint {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 0.72rem;
+  color: var(--kl-warn, #c4a000);
+}
+
+.before-after__img-wrap--refine {
+  position: relative;
+  cursor: crosshair;
+  touch-action: none;
+}
+
+.before-after__brush-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  display: block;
+  pointer-events: auto;
+  touch-action: none;
 }
 
 /* Interactive frame (overrides plain img-wrap positioning) */

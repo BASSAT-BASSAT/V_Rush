@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
   clamp01,
   emitSamParamsJson,
@@ -6,14 +6,25 @@ import {
   type SamOutputMode,
   type SamPromptType,
 } from '../lib/samParams'
+import { cutMaskOutsideBlackLine } from '../lib/cutOutsideStroke'
+import {
+  canvasToPngFile,
+  composeMobileSamPreview,
+  drawDataUrlToCanvas,
+  loadImageElement,
+  pngBase64ToDataUrl,
+} from '../lib/samMaskCompose'
 import { ZoomableFrame } from './ZoomableFrame'
 
+/** One undo step: SAM mask (image pixels) + black stroke overlay (CSS pixels). */
+interface BrushUndoFrame {
+  mask: ImageData
+  overlay: ImageData
+}
+
 export interface SamStepHandle {
-  /** Index shown to the user ("Editing step N"). 1-based. */
   stepIndex: number
-  /** Current JSON params for the step. */
   paramsJson: string
-  /** Push a new JSON string back to the owning pipeline step. */
   onChangeParamsJson: (json: string) => void
 }
 
@@ -21,11 +32,29 @@ interface Props {
   beforeUrl: string | null
   afterSrc: string | null
   lastKind: string | null
-  /** When present, enables interactive SAM point/box prompting on the Before image. */
   samStep?: SamStepHandle | null
+  /** Raw mask PNG from last process (MobileSAM); enables brush refine. */
+  samMaskPngBase64?: string | null
+  /** BGR pipeline image into MobileSAM — same WxH as mask. */
+  samSubjectPngBase64?: string | null
+  samOutputMode?: SamOutputMode | null
+  resultWidth?: number | null
+  resultHeight?: number | null
+  onApplyRefinedImage?: (file: File) => void
 }
 
-export function BeforeAfter({ beforeUrl, afterSrc, lastKind, samStep }: Props) {
+export function BeforeAfter({
+  beforeUrl,
+  afterSrc,
+  lastKind,
+  samStep,
+  samMaskPngBase64 = null,
+  samSubjectPngBase64 = null,
+  samOutputMode = null,
+  resultWidth = null,
+  resultHeight = null,
+  onApplyRefinedImage,
+}: Props) {
   const [mode, setMode] = useState<'split' | 'slider'>('split')
   const [slider, setSlider] = useState(50)
 
@@ -40,6 +69,18 @@ export function BeforeAfter({ beforeUrl, afterSrc, lastKind, samStep }: Props) {
   const [ghost, setGhost] = useState<{ x1: number; y1: number; x2: number; y2: number } | null>(
     null,
   )
+  const pointerCaptureRef = useRef<{ el: HTMLElement; pointerId: number } | null>(null)
+
+  const releaseSamPointerCapture = useCallback(() => {
+    const c = pointerCaptureRef.current
+    pointerCaptureRef.current = null
+    if (!c) return
+    try {
+      if (c.el.hasPointerCapture(c.pointerId)) c.el.releasePointerCapture(c.pointerId)
+    } catch {
+      /* already released */
+    }
+  }, [])
 
   const pushSam = useCallback(
     (next: ReturnType<typeof parseSamParamsJson>) => {
@@ -50,8 +91,7 @@ export function BeforeAfter({ beforeUrl, afterSrc, lastKind, samStep }: Props) {
   )
 
   const fracFromEvent = useCallback(
-    (e: React.PointerEvent<HTMLDivElement>): { fx: number; fy: number } | null => {
-      const el = frameRef.current
+    (e: React.PointerEvent<HTMLElement>, el: HTMLElement | null): { fx: number; fy: number } | null => {
       if (!el) return null
       const rect = el.getBoundingClientRect()
       if (rect.width <= 0 || rect.height <= 0) return null
@@ -66,9 +106,15 @@ export function BeforeAfter({ beforeUrl, afterSrc, lastKind, samStep }: Props) {
   const onPointerDown = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
       if (!samActive || !sam) return
-      const pt = fracFromEvent(e)
+      const el = e.currentTarget
+      const pt = fracFromEvent(e, el)
       if (!pt) return
-      ;(e.currentTarget as HTMLDivElement).setPointerCapture?.(e.pointerId)
+      try {
+        el.setPointerCapture(e.pointerId)
+        pointerCaptureRef.current = { el, pointerId: e.pointerId }
+      } catch {
+        pointerCaptureRef.current = null
+      }
       if (sam.prompt_type === 'point') {
         pushSam({
           ...sam,
@@ -87,7 +133,7 @@ export function BeforeAfter({ beforeUrl, afterSrc, lastKind, samStep }: Props) {
   const onPointerMove = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
       if (!samActive || !sam || !dragBox || sam.prompt_type !== 'box') return
-      const pt = fracFromEvent(e)
+      const pt = fracFromEvent(e, e.currentTarget)
       if (!pt) return
       setGhost({
         x1: Math.min(dragBox.x, pt.fx),
@@ -101,8 +147,11 @@ export function BeforeAfter({ beforeUrl, afterSrc, lastKind, samStep }: Props) {
 
   const onPointerUp = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
-      if (!samActive || !sam || !dragBox || sam.prompt_type !== 'box') return
-      const pt = fracFromEvent(e)
+      if (!samActive || !sam || !dragBox || sam.prompt_type !== 'box') {
+        releaseSamPointerCapture()
+        return
+      }
+      const pt = fracFromEvent(e, e.currentTarget)
       const end = pt ?? { fx: dragBox.x, fy: dragBox.y }
       const x1 = Math.min(dragBox.x, end.fx)
       const y1 = Math.min(dragBox.y, end.fy)
@@ -119,13 +168,21 @@ export function BeforeAfter({ beforeUrl, afterSrc, lastKind, samStep }: Props) {
       }
       setDragBox(null)
       setGhost(null)
+      releaseSamPointerCapture()
     },
-    [samActive, sam, dragBox, fracFromEvent, pushSam],
+    [samActive, sam, dragBox, fracFromEvent, pushSam, releaseSamPointerCapture],
   )
 
   const onPointerCancel = useCallback(() => {
     setDragBox(null)
     setGhost(null)
+    releaseSamPointerCapture()
+  }, [releaseSamPointerCapture])
+
+  const onLostPointerCapture = useCallback(() => {
+    setDragBox(null)
+    setGhost(null)
+    pointerCaptureRef.current = null
   }, [])
 
   const activeBox =
@@ -139,9 +196,377 @@ export function BeforeAfter({ beforeUrl, afterSrc, lastKind, samStep }: Props) {
         }
       : null)
 
-  if (!beforeUrl) {
-    return <div className="before-after before-after--empty">Load an image to compare</div>
-  }
+  // --- Mask refine (MobileSAM) — offscreen canvases via refs (not useMemo) for eslint immutability ---
+  const maskCanvasElRef = useRef<HTMLCanvasElement | null>(null)
+  const subjectCanvasElRef = useRef<HTMLCanvasElement | null>(null)
+  const ensureOffscreenCanvases = useCallback((): {
+    mask: HTMLCanvasElement
+    subject: HTMLCanvasElement
+  } | null => {
+    if (typeof document === 'undefined') return null
+    if (!maskCanvasElRef.current) maskCanvasElRef.current = document.createElement('canvas')
+    if (!subjectCanvasElRef.current) subjectCanvasElRef.current = document.createElement('canvas')
+    return { mask: maskCanvasElRef.current, subject: subjectCanvasElRef.current }
+  }, [])
+
+  const refineAvailable = Boolean(
+    samMaskPngBase64 && resultWidth && resultHeight && samOutputMode && afterSrc,
+  )
+
+  const [refinedAfterUrl, setRefinedAfterUrl] = useState<string | null>(null)
+  const [brushRadius, setBrushRadius] = useState(14)
+  const [refineHint, setRefineHint] = useState<string | null>(null)
+  const [cutHint, setCutHint] = useState<string | null>(null)
+  const undoStack = useRef<BrushUndoFrame[]>([])
+  const afterImgWrapRef = useRef<HTMLDivElement | null>(null)
+  const brushOverlayRef = useRef<HTMLCanvasElement | null>(null)
+  const lastBrushCss = useRef<{ x: number; y: number } | null>(null)
+  const brushCaptureRef = useRef<{ el: HTMLElement; pointerId: number } | null>(null)
+  const brushPainting = useRef(false)
+
+  const releaseBrushCapture = useCallback(() => {
+    const c = brushCaptureRef.current
+    brushCaptureRef.current = null
+    if (!c) return
+    try {
+      if (c.el.hasPointerCapture(c.pointerId)) c.el.releasePointerCapture(c.pointerId)
+    } catch {
+      /* */
+    }
+  }, [])
+
+  const brushPaintedInStroke = useRef(false)
+
+  const ensureBrushOverlayFit = useCallback(() => {
+    const wrap = afterImgWrapRef.current
+    const canvas = brushOverlayRef.current
+    if (!wrap || !canvas) return
+    const w = Math.max(1, Math.round(wrap.clientWidth))
+    const h = Math.max(1, Math.round(wrap.clientHeight))
+    if (canvas.width !== w || canvas.height !== h) {
+      canvas.width = w
+      canvas.height = h
+    }
+  }, [])
+
+  const recomposeFromMasks = useCallback(() => {
+    const c = ensureOffscreenCanvases()
+    if (!c || !samOutputMode) return
+    const { mask, subject } = c
+    if (mask.width === 0 || mask.height === 0) return
+    try {
+      if (samOutputMode === 'mask') {
+        setRefinedAfterUrl(composeMobileSamPreview(mask, mask, 'mask'))
+        return
+      }
+      if (subject.width === 0 || subject.height === 0) return
+      setRefinedAfterUrl(composeMobileSamPreview(subject, mask, samOutputMode))
+    } catch {
+      setRefinedAfterUrl(null)
+    }
+  }, [ensureOffscreenCanvases, samOutputMode])
+
+  const initialUndoSeededRef = useRef(false)
+
+  useEffect(() => {
+    if (!refineAvailable || !samMaskPngBase64 || !resultWidth || !resultHeight || !samOutputMode) {
+      undoStack.current = []
+      const t = window.setTimeout(() => {
+        setRefinedAfterUrl(null)
+        setRefineHint(null)
+      }, 0)
+      return () => window.clearTimeout(t)
+    }
+
+    let cancelled = false
+    ;(async () => {
+      const pair = ensureOffscreenCanvases()
+      if (!pair) return
+      const { mask: maskCanvas, subject: subjectCanvas } = pair
+      try {
+        initialUndoSeededRef.current = false
+        await drawDataUrlToCanvas(pngBase64ToDataUrl(samMaskPngBase64), maskCanvas)
+        if (cancelled) return
+        let subjectReady = false
+        if (samSubjectPngBase64) {
+          await drawDataUrlToCanvas(pngBase64ToDataUrl(samSubjectPngBase64), subjectCanvas)
+          subjectReady =
+            subjectCanvas.width === resultWidth && subjectCanvas.height === resultHeight
+        } else if (beforeUrl) {
+          try {
+            const img = await loadImageElement(beforeUrl)
+            if (img.naturalWidth === resultWidth && img.naturalHeight === resultHeight) {
+              subjectCanvas.width = img.naturalWidth
+              subjectCanvas.height = img.naturalHeight
+              subjectCanvas.getContext('2d')?.drawImage(img, 0, 0)
+              subjectReady = true
+            }
+          } catch {
+            subjectReady = false
+          }
+        }
+        if (cancelled) return
+        if (!subjectReady && samOutputMode !== 'mask') {
+          setRefineHint(
+            'Overlay/cutout brush preview needs the SAM subject frame from the server (reload after deploy).',
+          )
+        } else {
+          setRefineHint(null)
+        }
+        undoStack.current = []
+        recomposeFromMasks()
+      } catch {
+        if (!cancelled) {
+          setRefinedAfterUrl(null)
+          setRefineHint('Could not load mask for refinement.')
+        }
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [
+    refineAvailable,
+    samMaskPngBase64,
+    samSubjectPngBase64,
+    samOutputMode,
+    resultWidth,
+    resultHeight,
+    afterSrc,
+    beforeUrl,
+    recomposeFromMasks,
+    ensureOffscreenCanvases,
+  ])
+
+  /** Seed undo stack once the mask exists and the After pane has laid out (overlay canvas size). */
+  useLayoutEffect(() => {
+    if (!refineAvailable) {
+      initialUndoSeededRef.current = false
+      return
+    }
+    if (initialUndoSeededRef.current || undoStack.current.length > 0) return
+    const c = ensureOffscreenCanvases()
+    if (!c || !c.mask.width || !c.mask.height) return
+    ensureBrushOverlayFit()
+    const mctx = c.mask.getContext('2d')
+    const oc = brushOverlayRef.current
+    const octx = oc?.getContext('2d')
+    if (!mctx) return
+    const overlaySnap =
+      oc && octx && oc.width > 0 && oc.height > 0
+        ? octx.getImageData(0, 0, oc.width, oc.height)
+        : new ImageData(1, 1)
+    undoStack.current.push({
+      mask: mctx.getImageData(0, 0, c.mask.width, c.mask.height),
+      overlay: overlaySnap,
+    })
+    initialUndoSeededRef.current = true
+  }, [refineAvailable, refinedAfterUrl, afterSrc, ensureOffscreenCanvases, ensureBrushOverlayFit])
+
+  const pushUndoBrushState = useCallback(() => {
+    const c = ensureOffscreenCanvases()
+    if (!c) return
+    const { mask } = c
+    const mctx = mask.getContext('2d')
+    if (!mctx || mask.width === 0) return
+    ensureBrushOverlayFit()
+    const oc = brushOverlayRef.current
+    const octx = oc?.getContext('2d')
+    const maskSnap = mctx.getImageData(0, 0, mask.width, mask.height)
+    const overlaySnap =
+      oc && octx && oc.width > 0 && oc.height > 0
+        ? octx.getImageData(0, 0, oc.width, oc.height)
+        : new ImageData(1, 1)
+    undoStack.current.push({ mask: maskSnap, overlay: overlaySnap })
+    if (undoStack.current.length > 12) undoStack.current.shift()
+  }, [ensureOffscreenCanvases, ensureBrushOverlayFit])
+
+  /** Black strokes on overlay only; use "Cut outside line" to apply segmentation. */
+  const paintEraseAt = useCallback(
+    (clientX: number, clientY: number) => {
+      const canvas = brushOverlayRef.current
+      if (!canvas) return
+      ensureBrushOverlayFit()
+      const rect = canvas.getBoundingClientRect()
+      if (rect.width <= 0 || rect.height <= 0) return
+
+      const octx = canvas.getContext('2d')
+      if (octx) {
+        const x = clientX - rect.left
+        const y = clientY - rect.top
+        const lineW = Math.max(2, brushRadius)
+        octx.save()
+        octx.fillStyle = '#000000'
+        octx.strokeStyle = '#000000'
+        octx.lineWidth = lineW
+        octx.lineCap = 'round'
+        octx.lineJoin = 'round'
+        if (lastBrushCss.current == null) {
+          octx.beginPath()
+          octx.arc(x, y, lineW / 2, 0, Math.PI * 2)
+          octx.fill()
+        } else {
+          octx.beginPath()
+          octx.moveTo(lastBrushCss.current.x, lastBrushCss.current.y)
+          octx.lineTo(x, y)
+          octx.stroke()
+        }
+        octx.restore()
+        lastBrushCss.current = { x, y }
+      }
+      brushPaintedInStroke.current = true
+    },
+    [brushRadius, ensureBrushOverlayFit],
+  )
+
+  const applyCutOutsideLine = useCallback(() => {
+    setCutHint(null)
+    const c = ensureOffscreenCanvases()
+    const oc = brushOverlayRef.current
+    if (!c || !oc) return
+    const res = cutMaskOutsideBlackLine(c.mask, oc)
+    if (!res.ok) {
+      setCutHint(res.reason)
+      return
+    }
+    ensureBrushOverlayFit()
+    oc.getContext('2d')?.clearRect(0, 0, oc.width, oc.height)
+    pushUndoBrushState()
+    recomposeFromMasks()
+  }, [ensureOffscreenCanvases, ensureBrushOverlayFit, pushUndoBrushState, recomposeFromMasks])
+
+  useEffect(() => {
+    if (!cutHint) return
+    const t = window.setTimeout(() => setCutHint(null), 8000)
+    return () => window.clearTimeout(t)
+  }, [cutHint])
+
+  const onBrushPointerDown = useCallback(
+    (e: React.PointerEvent<HTMLCanvasElement>) => {
+      if (!refineAvailable || e.button !== 0) return
+      const el = e.currentTarget
+      try {
+        el.setPointerCapture(e.pointerId)
+        brushCaptureRef.current = { el, pointerId: e.pointerId }
+      } catch {
+        brushCaptureRef.current = null
+      }
+      lastBrushCss.current = null
+      ensureBrushOverlayFit()
+      brushPainting.current = true
+      paintEraseAt(e.clientX, e.clientY)
+    },
+    [refineAvailable, paintEraseAt, ensureBrushOverlayFit],
+  )
+
+  const onBrushPointerMove = useCallback(
+    (e: React.PointerEvent<HTMLCanvasElement>) => {
+      if (!brushPainting.current || !refineAvailable) return
+      paintEraseAt(e.clientX, e.clientY)
+    },
+    [refineAvailable, paintEraseAt],
+  )
+
+  const onBrushPointerUp = useCallback(() => {
+    if (brushPainting.current && brushPaintedInStroke.current) {
+      pushUndoBrushState()
+    }
+    brushPainting.current = false
+    brushPaintedInStroke.current = false
+    lastBrushCss.current = null
+    releaseBrushCapture()
+  }, [pushUndoBrushState, releaseBrushCapture])
+
+  const onBrushLostCapture = useCallback(() => {
+    brushPainting.current = false
+    lastBrushCss.current = null
+    brushCaptureRef.current = null
+  }, [])
+
+  const undoMask = useCallback(() => {
+    const c = ensureOffscreenCanvases()
+    if (!c || undoStack.current.length < 2) return
+    const { mask } = c
+    undoStack.current.pop()
+    const prev = undoStack.current[undoStack.current.length - 1]
+    const mctx = mask.getContext('2d')
+    if (mctx && prev) {
+      mctx.putImageData(prev.mask, 0, 0)
+    }
+    ensureBrushOverlayFit()
+    const oc = brushOverlayRef.current
+    const octx = oc?.getContext('2d')
+    if (octx && prev && oc) {
+      if (prev.overlay.width <= 1 && prev.overlay.height <= 1) {
+        octx.clearRect(0, 0, oc.width, oc.height)
+      } else if (prev.overlay.width === oc.width && prev.overlay.height === oc.height) {
+        octx.putImageData(prev.overlay, 0, 0)
+      } else {
+        octx.clearRect(0, 0, oc.width, oc.height)
+      }
+    }
+    recomposeFromMasks()
+  }, [recomposeFromMasks, ensureOffscreenCanvases, ensureBrushOverlayFit])
+
+  const resetMask = useCallback(() => {
+    const c = ensureOffscreenCanvases()
+    if (!c || !samMaskPngBase64) return
+    const { mask } = c
+    void (async () => {
+      initialUndoSeededRef.current = false
+      await drawDataUrlToCanvas(pngBase64ToDataUrl(samMaskPngBase64), mask)
+      undoStack.current = []
+      ensureBrushOverlayFit()
+      const oc = brushOverlayRef.current
+      const octx = oc?.getContext('2d')
+      if (oc && octx) octx.clearRect(0, 0, oc.width, oc.height)
+      const mctx = mask.getContext('2d')
+      if (mctx && mask.width > 0) {
+        ensureBrushOverlayFit()
+        const octx2 = brushOverlayRef.current?.getContext('2d')
+        const oc2 = brushOverlayRef.current
+        undoStack.current.push({
+          mask: mctx.getImageData(0, 0, mask.width, mask.height),
+          overlay:
+            oc2 && octx2 && oc2.width > 0
+              ? octx2.getImageData(0, 0, oc2.width, oc2.height)
+              : new ImageData(1, 1),
+        })
+      }
+      recomposeFromMasks()
+      initialUndoSeededRef.current = true
+    })()
+  }, [samMaskPngBase64, recomposeFromMasks, ensureOffscreenCanvases, ensureBrushOverlayFit])
+
+  const applyRefinedAsSource = useCallback(async () => {
+    const c = ensureOffscreenCanvases()
+    if (!onApplyRefinedImage || !c || !samOutputMode) return
+    const { mask, subject } = c
+    try {
+      const out = document.createElement('canvas')
+      out.width = mask.width
+      out.height = mask.height
+      const ctx = out.getContext('2d')
+      if (!ctx) return
+      if (samOutputMode === 'mask') {
+        const url = composeMobileSamPreview(mask, mask, 'mask')
+        await drawDataUrlToCanvas(url, out)
+      } else if (subject.width > 0) {
+        const url = composeMobileSamPreview(subject, mask, samOutputMode)
+        await drawDataUrlToCanvas(url, out)
+      } else {
+        const url = composeMobileSamPreview(mask, mask, 'mask')
+        await drawDataUrlToCanvas(url, out)
+      }
+      const f = await canvasToPngFile(out, 'refined-mask.png')
+      onApplyRefinedImage(f)
+    } catch {
+      /* toast from parent if needed */
+    }
+  }, [onApplyRefinedImage, samOutputMode, ensureOffscreenCanvases])
+
+  const displayAfterSrc = refinedAfterUrl ?? afterSrc
 
   const renderSamOverlay = () => {
     if (!samActive || !sam) return null
@@ -178,6 +603,10 @@ export function BeforeAfter({ beforeUrl, afterSrc, lastKind, samStep }: Props) {
         )}
       </>
     )
+  }
+
+  if (!beforeUrl) {
+    return <div className="before-after before-after--empty">Load an image to compare</div>
   }
 
   return (
@@ -281,6 +710,42 @@ export function BeforeAfter({ beforeUrl, afterSrc, lastKind, samStep }: Props) {
         </div>
       )}
 
+      {refineAvailable && onApplyRefinedImage && (
+        <div className="before-after__mask-refine-bar" role="region" aria-label="Mask refinement">
+          <span className="before-after__mask-refine-title">Manual segmentation</span>
+          <span className="before-after__mask-refine-sub">
+            Draw a closed <strong>black outline</strong> around what you want to keep, then click{' '}
+            <strong>Cut outside line</strong> — everything outside that line is removed from the mask (like a
+            lasso). Close small gaps in the loop so the inside does not leak to the edge. Pan/zoom stays off
+            while brushing.
+          </span>
+          <label className="before-after__mask-refine-field">
+            <span>Brush</span>
+            <input
+              type="range"
+              min={4}
+              max={48}
+              value={brushRadius}
+              onChange={(e) => setBrushRadius(Number(e.target.value))}
+            />
+          </label>
+          <button type="button" className="btn btn--primary btn--sm" onClick={applyCutOutsideLine}>
+            Cut outside line
+          </button>
+          <button type="button" className="btn btn--ghost btn--sm" onClick={undoMask}>
+            Undo
+          </button>
+          <button type="button" className="btn btn--ghost btn--sm" onClick={resetMask}>
+            Reset mask
+          </button>
+          <button type="button" className="btn btn--sm" onClick={() => void applyRefinedAsSource()}>
+            Use as source
+          </button>
+          {cutHint && <p className="before-after__mask-refine-hint">{cutHint}</p>}
+          {refineHint && <p className="before-after__mask-refine-hint">{refineHint}</p>}
+        </div>
+      )}
+
       {mode === 'split' ? (
         <div className="before-after__viewport">
           <div className="before-after__split">
@@ -296,6 +761,7 @@ export function BeforeAfter({ beforeUrl, afterSrc, lastKind, samStep }: Props) {
                   onPointerMove={onPointerMove}
                   onPointerUp={onPointerUp}
                   onPointerCancel={onPointerCancel}
+                  onLostPointerCapture={onLostPointerCapture}
                 >
                   <img src={beforeUrl} alt="Original" draggable={false} />
                   {renderSamOverlay()}
@@ -310,10 +776,30 @@ export function BeforeAfter({ beforeUrl, afterSrc, lastKind, samStep }: Props) {
             </figure>
             <figure>
               <figcaption>After</figcaption>
-              {afterSrc ? (
-                <ZoomableFrame className="before-after__zoom" key={afterSrc}>
-                  <div className="before-after__img-wrap before-after__img-wrap--reveal">
-                    <img src={afterSrc} alt="Processed" />
+              {displayAfterSrc ? (
+                <ZoomableFrame className="before-after__zoom" disabled={refineAvailable}>
+                  <div
+                    ref={afterImgWrapRef}
+                    className={`before-after__img-wrap before-after__img-wrap--reveal${refineAvailable ? ' before-after__img-wrap--refine' : ''}`}
+                  >
+                    <img
+                      src={displayAfterSrc}
+                      alt="Processed"
+                      draggable={false}
+                      style={refineAvailable ? { pointerEvents: 'none' } : undefined}
+                    />
+                    {refineAvailable && (
+                      <canvas
+                        ref={brushOverlayRef}
+                        className="before-after__brush-overlay"
+                        aria-label="Mask brush"
+                        onPointerDown={onBrushPointerDown}
+                        onPointerMove={onBrushPointerMove}
+                        onPointerUp={onBrushPointerUp}
+                        onPointerCancel={onBrushPointerUp}
+                        onLostPointerCapture={onBrushLostCapture}
+                      />
+                    )}
                   </div>
                 </ZoomableFrame>
               ) : (
@@ -334,6 +820,7 @@ export function BeforeAfter({ beforeUrl, afterSrc, lastKind, samStep }: Props) {
               onPointerMove={samActive ? onPointerMove : undefined}
               onPointerUp={samActive ? onPointerUp : undefined}
               onPointerCancel={samActive ? onPointerCancel : undefined}
+              onLostPointerCapture={samActive ? onLostPointerCapture : undefined}
             >
               <img
                 src={beforeUrl}
@@ -341,9 +828,9 @@ export function BeforeAfter({ beforeUrl, afterSrc, lastKind, samStep }: Props) {
                 className="before-after__layer before-after__layer--base"
                 draggable={false}
               />
-              {afterSrc && (
+              {displayAfterSrc && (
                 <img
-                  src={afterSrc}
+                  src={displayAfterSrc}
                   alt=""
                   className="before-after__layer before-after__layer--top"
                   style={{ clipPath: `inset(0 0 0 ${slider}%)` }}
@@ -359,7 +846,7 @@ export function BeforeAfter({ beforeUrl, afterSrc, lastKind, samStep }: Props) {
             value={slider}
             onChange={(e) => setSlider(Number(e.target.value))}
             className="before-after__range"
-            disabled={!afterSrc}
+            disabled={!displayAfterSrc}
           />
         </div>
       )}

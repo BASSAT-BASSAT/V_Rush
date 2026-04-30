@@ -1,4 +1,4 @@
-import { BrowserRouter, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, Outlet, Route, Routes } from 'react-router-dom'
 import { AppLayout } from './components/AppLayout'
 import { AuthScreen } from './components/AuthScreen'
 import { RequireAuth } from './components/RequireAuth'
@@ -7,7 +7,7 @@ import { AuthCallbackPage } from './pages/AuthCallbackPage'
 import { DatasetsPage } from './pages/DatasetsPage'
 import { LandingPage } from './pages/LandingPage'
 import { MatcherPage } from './pages/MatcherPage'
-import { PipelinePage } from './pages/PipelinePage'
+import { PipelineWorkspaceLayout } from './pages/PipelineWorkspaceLayout'
 import { ProfilePage } from './pages/ProfilePage'
 import { ReferencePage } from './pages/ReferencePage'
 import './App.css'
@@ -30,21 +30,15 @@ function App() {
         <Route element={<AppLayout />}>
           <Route index element={<LandingPage />} />
           <Route
-            path="studio"
             element={
               <RequireAuth>
-                <PipelinePage />
+                <PipelineWorkspaceLayout />
               </RequireAuth>
             }
-          />
-          <Route
-            path="lab"
-            element={
-              <RequireAuth>
-                <PipelinePage />
-              </RequireAuth>
-            }
-          />
+          >
+            <Route path="studio" element={<Outlet />} />
+            <Route path="lab" element={<Outlet />} />
+          </Route>
           <Route
             path="match"
             element={

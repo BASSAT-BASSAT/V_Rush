@@ -101,7 +101,8 @@ def test_point_prompt_produces_mask() -> None:
     try:
         img = np.full((64, 64, 3), 120, dtype=np.uint8)
         params = validate_mobile_sam_params({"prompt_type": "point", "output": "overlay"})
-        out, dets = mobile_sam_segment_step(img, params)
+        out, dets, mask_u8 = mobile_sam_segment_step(img, params)
+        assert mask_u8.shape == (64, 64)
         assert out.shape == img.shape
         assert out.dtype == np.uint8
         assert len(dets) == 1
@@ -126,7 +127,7 @@ def test_box_prompt_sends_two_points() -> None:
                 "output": "mask",
             }
         )
-        out, dets = mobile_sam_segment_step(img, params)
+        out, dets, _mask = mobile_sam_segment_step(img, params)
         assert out.shape == img.shape
         assert dets[0]["area_px"] > 0
         assert dec.last_feeds is not None
@@ -145,7 +146,7 @@ def test_cutout_output_zeros_background() -> None:
     try:
         img = np.full((32, 32, 3), 200, dtype=np.uint8)
         params = validate_mobile_sam_params({"prompt_type": "point", "output": "cutout"})
-        out, _ = mobile_sam_segment_step(img, params)
+        out, _, _m = mobile_sam_segment_step(img, params)
         # corners are outside the 1/4..3/4 rect -> should be zero
         assert out[0, 0].sum() == 0
         assert out[0, -1].sum() == 0
@@ -160,7 +161,7 @@ def test_mask_output_is_bw() -> None:
     try:
         img = np.full((40, 40, 3), 77, dtype=np.uint8)
         params = validate_mobile_sam_params({"prompt_type": "point", "output": "mask"})
-        out, _ = mobile_sam_segment_step(img, params)
+        out, _, _m = mobile_sam_segment_step(img, params)
         vals = np.unique(out)
         assert set(vals.tolist()).issubset({0, 255})
     finally:
@@ -182,5 +183,7 @@ def test_execute_pipeline_routes_mobile_sam() -> None:
         assert r.image_bgr.shape == img.shape
         assert len(r.detections) == 1
         assert r.detections[0]["label"] == "sam-mask"
+        assert r.sam_mask_u8 is not None and r.sam_mask_u8.shape == (32, 32)
+        assert r.sam_subject_bgr is not None and r.sam_subject_bgr.shape == img.shape
     finally:
         set_model_for_testing(None)

@@ -30,7 +30,11 @@ export function AppLayout() {
   const reduced = useReducedMotion()
   // Group all auth-callback / signin paths together so that internal sub-state
   // changes don't re-fire the page transition.
-  const transitionKey = location.pathname.split('/')[1] || 'home'
+  // Keep /studio and /lab under one key so AnimatePresence does not remount the
+  // pipeline workspace when switching Classical ↔ Deep (state must persist).
+  const firstSeg = location.pathname.split('/')[1] || 'home'
+  const transitionKey =
+    firstSeg === 'studio' || firstSeg === 'lab' ? 'pipeline-workspace' : firstSeg
 
   return (
     <div className="app">

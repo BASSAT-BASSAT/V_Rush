@@ -46,6 +46,10 @@ export interface ProcessResponse {
   before_stats?: ImageStats | null
   /** Pixel statistics of the processed output. */
   after_stats?: ImageStats | null
+  /** Grayscale PNG mask (base64) from the last MobileSAM step — for brush refinement in the UI. */
+  sam_mask_png_base64?: string | null
+  /** BGR-as-PNG (base64) image fed into that MobileSAM step — same size as the mask; for accurate overlay/cutout refine. */
+  sam_subject_png_base64?: string | null
 }
 
 export interface PipelineStepUI {
@@ -158,7 +162,7 @@ export interface KaggleSearchResponse {
   datasets: KaggleDatasetSummary[]
 }
 
-/** Payload handed to PipelinePage / MatcherPage via router state. */
+/** Payload handed to the studio workspace / MatcherPage via router state. */
 export interface PreloadedImageState {
   /** Slot to populate when arriving on the matcher page. */
   slot?: 'A' | 'B'

@@ -7,6 +7,7 @@ import json
 import os
 from typing import Any
 
+import cv2
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 
 from app.auth_deps import require_user
@@ -110,6 +111,17 @@ async def process_image(
     det_models = [DetectionItem(**d) for d in result.detections]
     after_stats = ImageStats(**image_stats(result.image_bgr))
 
+    sam_mask_b64: str | None = None
+    sam_subject_b64: str | None = None
+    if result.sam_mask_u8 is not None:
+        ok, buf = cv2.imencode(".png", result.sam_mask_u8)
+        if ok:
+            sam_mask_b64 = base64.b64encode(buf.tobytes()).decode("ascii")
+    if result.sam_subject_bgr is not None:
+        ok, buf = cv2.imencode(".png", result.sam_subject_bgr)
+        if ok:
+            sam_subject_b64 = base64.b64encode(buf.tobytes()).decode("ascii")
+
     return ProcessResponse(
         image_base64=b64,
         mime=out_mime,
@@ -121,4 +133,6 @@ async def process_image(
         detections=det_models,
         before_stats=before_stats,
         after_stats=after_stats,
+        sam_mask_png_base64=sam_mask_b64,
+        sam_subject_png_base64=sam_subject_b64,
     )

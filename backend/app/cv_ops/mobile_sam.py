@@ -233,8 +233,8 @@ def _mask_bbox(mask: np.ndarray) -> list[float]:
 
 def mobile_sam_segment_step(
     bgr: np.ndarray, params: dict
-) -> tuple[np.ndarray, list[dict[str, Any]]]:
-    """Run MobileSAM encoder+decoder; returns (rendered BGR, detections-like)."""
+) -> tuple[np.ndarray, list[dict[str, Any]], np.ndarray]:
+    """Run MobileSAM encoder+decoder; returns (rendered BGR, detections-like, binary mask uint8 H×W)."""
     enc_sess, dec_sess = _get_sessions()
     enc_input = _enc_input_name or "image"
 
@@ -276,12 +276,12 @@ def mobile_sam_segment_step(
         "class_id": -1,
         "area_px": area_px,
     }
-    return rendered, [detection]
+    return rendered, [detection], mask_u8
 
 
 def apply_mobile_sam(bgr: np.ndarray, params: dict) -> np.ndarray:
     """Registry ``apply``: image only (detections merged by executor)."""
-    img, _ = mobile_sam_segment_step(bgr, params)
+    img, _, _ = mobile_sam_segment_step(bgr, params)
     return img
 
 

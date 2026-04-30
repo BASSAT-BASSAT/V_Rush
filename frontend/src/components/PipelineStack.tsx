@@ -6,6 +6,7 @@ import type { OpInfo, PipelineStepUI } from '../types/cv'
 interface Props {
   steps: PipelineStepUI[]
   opsById: Map<string, OpInfo>
+  showMath?: boolean
   onChangeParams: (key: string, json: string) => void
   onRemove: (key: string) => void
   onMove: (key: string, dir: -1 | 1) => void
@@ -19,6 +20,7 @@ interface Props {
 export function PipelineStack({
   steps,
   opsById,
+  showMath = false,
   onChangeParams,
   onRemove,
   onMove,
@@ -45,10 +47,7 @@ export function PipelineStack({
           {steps.map((s, idx) => {
             const meta = opsById.get(s.op)
             const help = meta?.param_help ?? {}
-            const formula =
-              meta?.detail_doc
-                ?.split(/\n+/)
-                .find((line) => line.includes('=') || line.includes('sqrt(') || line.includes('log(')) ?? null
+            const mathDoc = meta?.detail_doc?.trim() || meta?.description?.trim() || null
             const isFlashing = flashKey === s.key
             const isRunning = typeof runningIdx === 'number' && runningIdx === idx
             const classes = [
@@ -118,9 +117,9 @@ export function PipelineStack({
                   </div>
                 </div>
                 {meta?.description && <p className="pipeline-stack__blurb">{meta.description}</p>}
-                {formula && (
+                {showMath && mathDoc && (
                   <p className="pipeline-stack__math" aria-label="Operation formula">
-                    <strong>Math:</strong> {formula}
+                    <strong>Math:</strong> {mathDoc}
                   </p>
                 )}
                 {s.op === 'yolo26_detect' ? (

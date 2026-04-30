@@ -64,6 +64,9 @@ class ProcessResponse(BaseModel):
     detections: list[DetectionItem] = Field(default_factory=list)
     before_stats: ImageStats | None = None
     after_stats: ImageStats | None = None
+    # Present when the pipeline included mobile_sam: PNG grayscale mask + BGR subject image (same size).
+    sam_mask_png_base64: str | None = None
+    sam_subject_png_base64: str | None = None
 
 
 # =========================
