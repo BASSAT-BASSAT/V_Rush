@@ -67,7 +67,7 @@ Dependencies for the Python service come from [`backend/pyproject.toml`](backend
 | `PORT` | Usually auto | Listen port (default `8000`). |
 | `KERNELLAB_AUTH_DISABLED` | CV-only / dev | Set to `1` to allow `/api/*` **without** a Bearer token. |
 | `MAX_IMAGE_BYTES` | Optional | Default 8 MiB. |
-| `MAX_IMAGE_DIMENSION` | Optional | Default 4096 px. |
+| `MAX_IMAGE_DIMENSION` | Optional | Default 8192 px. |
 
 **Object detection (YOLO26):** `yolo26_detect` runs on **ONNX Runtime** (CPU) against the committed [`backend/yolo26n.onnx`](backend/yolo26n.onnx) — **no PyTorch / Ultralytics on the server**, which is what keeps the Python function under Vercel's bundle size limit. Ultralytics weights are **AGPL-3.0** — confirm licensing for your use case.
 

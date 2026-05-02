@@ -14,7 +14,7 @@ def _parse_cors() -> list[str]:
 @dataclass(frozen=True)
 class Settings:
     max_image_bytes: int = int(os.getenv("MAX_IMAGE_BYTES", str(8 * 1024 * 1024)))
-    max_image_dimension: int = int(os.getenv("MAX_IMAGE_DIMENSION", "4096"))
+    max_image_dimension: int = int(os.getenv("MAX_IMAGE_DIMENSION", "8192"))
     cors_origins: list[str] = field(default_factory=_parse_cors)
 
 
