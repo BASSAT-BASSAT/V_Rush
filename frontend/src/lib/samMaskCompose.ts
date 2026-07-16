@@ -107,11 +107,11 @@ export async function canvasToPngFile(canvas: HTMLCanvasElement, filename: strin
 
 type RasterMime = 'image/png' | 'image/jpeg' | 'image/webp'
 
-type SourceAlignedNameSuffix = '-refined' | '-v-rush'
+type SourceAlignedNameSuffix = '' | '-refined'
 
 /**
- * Filename + raster MIME aligned to the uploaded source (JPEG / WebP / PNG),
- * with either `-refined` (replace source) or `-v-rush` (pipeline download) before the extension.
+ * Filename + raster MIME aligned to the uploaded source (JPEG / WebP / PNG).
+ * Empty suffix keeps the original basename for downloads; `-refined` for replace-source.
  */
 export function exportFilenameAndMimeAlignedToSource(
   sourceFile: File | null,
@@ -124,7 +124,7 @@ export function exportFilenameAndMimeAlignedToSource(
       ? stemFromFile
       : nameSuffix === '-refined'
         ? 'refined'
-        : 'v-rush-output'
+        : 'output'
   const extMatch = /\.([^.]+)$/i.exec(name)
   const extRaw = extMatch ? extMatch[1].toLowerCase() : ''
 
@@ -173,8 +173,8 @@ export async function canvasToSourceAlignedFile(
 }
 
 /**
- * Decode a PNG (or other) data URL, re-encode to match the studio source file type, and use
- * the `stem-v-rush` naming pattern — for “Download image” after mask refinement.
+ * Decode a PNG (or other) data URL, re-encode to match the studio source file type,
+ * and keep the original basename (no suffix) for “Download image”.
  */
 export async function dataUrlToVrushDownloadFile(
   dataUrl: string,
@@ -187,5 +187,5 @@ export async function dataUrlToVrushDownloadFile(
   const ctx = canvas.getContext('2d')
   if (!ctx) throw new Error('Could not create canvas')
   ctx.drawImage(img, 0, 0)
-  return canvasToRasterFile(canvas, exportFilenameAndMimeAlignedToSource(sourceFile, '-v-rush'))
+  return canvasToRasterFile(canvas, exportFilenameAndMimeAlignedToSource(sourceFile, ''))
 }

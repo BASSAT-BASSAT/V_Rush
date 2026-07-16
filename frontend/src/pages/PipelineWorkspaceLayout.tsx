@@ -25,14 +25,14 @@ function newKey() {
   return crypto.randomUUID()
 }
 
-/** Suggested download filename: extension matches API ``mime`` (same family as uploaded image when possible). */
+/** Suggested download filename: same basename as upload; extension matches API ``mime``. */
 function downloadNameForProcessedOutput(file: File | null, mime: string): string {
   const ext = mime === 'image/jpeg' ? '.jpg' : mime === 'image/webp' ? '.webp' : '.png'
   if (file?.name) {
     const stem = file.name.replace(/\.[^/.]+$/, '')
-    if (stem.length > 0) return `${stem}-v-rush${ext}`
+    if (stem.length > 0) return `${stem}${ext}`
   }
-  return `v-rush-output${ext}`
+  return `output${ext}`
 }
 
 type WorkspaceTab = 'ops' | 'pipeline'
@@ -345,7 +345,6 @@ export function PipelineWorkspaceLayout() {
   }, [])
 
   const downloadPipelineOutputImage = useCallback(async () => {
-    if (!result) return
     try {
       if (refinedAfterDataUrl) {
         const f = await dataUrlToVrushDownloadFile(refinedAfterDataUrl, file)
@@ -360,7 +359,7 @@ export function PipelineWorkspaceLayout() {
         URL.revokeObjectURL(url)
         return
       }
-      if (!afterSrc) return
+      if (!result || !afterSrc) return
       const a = document.createElement('a')
       a.href = afterSrc
       a.download = downloadNameForProcessedOutput(file, result.mime)
@@ -425,6 +424,7 @@ export function PipelineWorkspaceLayout() {
             </h2>
             <p className="panel-hint panel-hint--tight">
               Upload a single image or a whole folder — then click any tile below to load it.
+              Use <strong>Manual Brush</strong> to draw an outline and cut outside or inside (no SAM).
             </p>
             <FileDrop onFile={assignStudioFile} disabled={loadingRun} />
             <DatasetTray
@@ -508,7 +508,7 @@ export function PipelineWorkspaceLayout() {
               <button type="button" className="btn" disabled={steps.length === 0} onClick={() => setSteps([])}>
                 Clear
               </button>
-              {result && (
+              {(result || refinedAfterDataUrl) && (
                 <button
                   type="button"
                   className="btn btn--ghost"
@@ -640,7 +640,8 @@ export function PipelineWorkspaceLayout() {
                     you stack above them. Switch to{' '}
                     <Link to="/studio">Local</Link> for filtering, edges, morphology, and K-Means / Watershed / GrabCut.
                     {' '}
-                    After MobileSAM, use <strong>Manual segmentation</strong>: draw a black loop, then{' '}
+                    Use <strong>Manual Brush</strong> in the preview to draw an outline and cut outside or inside (no SAM). After MobileSAM, use{' '}
+                    <strong>Manual segmentation (after SAM)</strong>: draw a black loop, then{' '}
                     <strong>Cut outside line</strong> or <strong>Cut inside line</strong> to trim the mask;{' '}
                     <strong>Use as source</strong> continues with the refined result (same file extension as your upload).
                   </p>

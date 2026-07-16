@@ -8,6 +8,12 @@ import {
 } from '../lib/samParams'
 import { cutMaskInsideBlackLine, cutMaskOutsideBlackLine } from '../lib/cutOutsideStroke'
 import {
+  composeBrushCutout,
+  createFullKeepMask,
+  keepMaskHasDiscard,
+  resetKeepMaskFull,
+} from '../lib/brushCutout'
+import {
   canvasToSourceAlignedFile,
   composeMobileSamPreview,
   drawDataUrlToCanvas,
@@ -64,7 +70,23 @@ export function BeforeAfter({
   const [mode, setMode] = useState<'split' | 'slider'>('split')
   const [slider, setSlider] = useState(50)
 
-  const samActive = Boolean(samStep && beforeUrl)
+  /** Standalone outline cutout (no SAM). Draw loop → Cut outside / inside. */
+  const [manualBrushOn, setManualBrushOn] = useState(false)
+  const [manualBrushRadius, setManualBrushRadius] = useState(14)
+  const [manualCutoutUrl, setManualCutoutUrl] = useState<string | null>(null)
+  const [manualCutHint, setManualCutHint] = useState<string | null>(null)
+  const [manualCursor, setManualCursor] = useState<{ x: number; y: number } | null>(null)
+  const manualSourceRef = useRef<HTMLCanvasElement | null>(null)
+  const manualMaskRef = useRef<HTMLCanvasElement | null>(null)
+  const manualStrokeOverlayRef = useRef<HTMLCanvasElement | null>(null)
+  const manualBeforeWrapRef = useRef<HTMLDivElement | null>(null)
+  const manualUndoStack = useRef<BrushUndoFrame[]>([])
+  const manualPainting = useRef(false)
+  const manualLastCss = useRef<{ x: number; y: number } | null>(null)
+  const manualPaintedInStroke = useRef(false)
+  const manualCaptureRef = useRef<{ el: HTMLElement; pointerId: number } | null>(null)
+
+  const samActive = Boolean(samStep && beforeUrl && !manualBrushOn)
   const sam = useMemo(
     () => (samStep ? parseSamParamsJson(samStep.paramsJson) : null),
     [samStep],
@@ -202,6 +224,313 @@ export function BeforeAfter({
         }
       : null)
 
+  // --- Standalone Manual Brush (no SAM): outline → cut outside / inside ---
+  const ensureManualCanvases = useCallback(async (): Promise<{
+    source: HTMLCanvasElement
+    mask: HTMLCanvasElement
+  } | null> => {
+    if (!beforeUrl) return null
+    const img = await loadImageElement(beforeUrl)
+    const w = img.naturalWidth
+    const h = img.naturalHeight
+    if (w < 1 || h < 1) return null
+    if (!manualSourceRef.current) manualSourceRef.current = document.createElement('canvas')
+    const source = manualSourceRef.current
+    if (source.width !== w || source.height !== h) {
+      source.width = w
+      source.height = h
+      source.getContext('2d')?.drawImage(img, 0, 0)
+    }
+    if (
+      !manualMaskRef.current ||
+      manualMaskRef.current.width !== w ||
+      manualMaskRef.current.height !== h
+    ) {
+      manualMaskRef.current = createFullKeepMask(w, h)
+      manualUndoStack.current = []
+    }
+    return { source, mask: manualMaskRef.current }
+  }, [beforeUrl])
+
+  const ensureManualStrokeOverlayFit = useCallback(() => {
+    const wrap = manualBeforeWrapRef.current
+    const canvas = manualStrokeOverlayRef.current
+    if (!wrap || !canvas) return
+    const w = Math.max(1, Math.round(wrap.clientWidth))
+    const h = Math.max(1, Math.round(wrap.clientHeight))
+    if (canvas.width !== w || canvas.height !== h) {
+      canvas.width = w
+      canvas.height = h
+    }
+  }, [])
+
+  const recomposeManualCutout = useCallback(() => {
+    const source = manualSourceRef.current
+    const mask = manualMaskRef.current
+    if (!source || !mask || mask.width < 1) return
+    if (!keepMaskHasDiscard(mask)) {
+      setManualCutoutUrl(null)
+      return
+    }
+    setManualCutoutUrl(composeBrushCutout(source, mask))
+  }, [])
+
+  const pushManualUndo = useCallback(() => {
+    const mask = manualMaskRef.current
+    const mctx = mask?.getContext('2d')
+    if (!mask || !mctx || mask.width < 1) return
+    ensureManualStrokeOverlayFit()
+    const oc = manualStrokeOverlayRef.current
+    const octx = oc?.getContext('2d')
+    const maskSnap = mctx.getImageData(0, 0, mask.width, mask.height)
+    const overlaySnap =
+      oc && octx && oc.width > 0 && oc.height > 0
+        ? octx.getImageData(0, 0, oc.width, oc.height)
+        : new ImageData(1, 1)
+    manualUndoStack.current.push({ mask: maskSnap, overlay: overlaySnap })
+    if (manualUndoStack.current.length > 12) manualUndoStack.current.shift()
+  }, [ensureManualStrokeOverlayFit])
+
+  const resetManualBrushState = useCallback(() => {
+    manualSourceRef.current = null
+    manualMaskRef.current = null
+    manualUndoStack.current = []
+    manualLastCss.current = null
+    setManualCutoutUrl(null)
+    setManualCutHint(null)
+    setManualCursor(null)
+    const oc = manualStrokeOverlayRef.current
+    if (oc) oc.getContext('2d')?.clearRect(0, 0, oc.width, oc.height)
+  }, [])
+
+  useEffect(() => {
+    resetManualBrushState()
+    setManualBrushOn(false)
+  }, [beforeUrl, resetManualBrushState])
+
+  useEffect(() => {
+    if (!manualBrushOn || !beforeUrl) return
+    let cancelled = false
+    void (async () => {
+      const pair = await ensureManualCanvases()
+      if (cancelled || !pair) return
+      if (manualUndoStack.current.length === 0) {
+        ensureManualStrokeOverlayFit()
+        const mctx = pair.mask.getContext('2d')
+        const oc = manualStrokeOverlayRef.current
+        const octx = oc?.getContext('2d')
+        if (mctx) {
+          manualUndoStack.current.push({
+            mask: mctx.getImageData(0, 0, pair.mask.width, pair.mask.height),
+            overlay:
+              oc && octx && oc.width > 0
+                ? octx.getImageData(0, 0, oc.width, oc.height)
+                : new ImageData(1, 1),
+          })
+        }
+      }
+      recomposeManualCutout()
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [manualBrushOn, beforeUrl, ensureManualCanvases, ensureManualStrokeOverlayFit, recomposeManualCutout])
+
+  useEffect(() => {
+    if (!manualCutHint) return
+    const t = window.setTimeout(() => setManualCutHint(null), 8000)
+    return () => window.clearTimeout(t)
+  }, [manualCutHint])
+
+  useEffect(() => {
+    if (!manualBrushOn) return
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return
+      if (e.key === '[') {
+        e.preventDefault()
+        setManualBrushRadius((r) => Math.max(4, r - 4))
+      } else if (e.key === ']') {
+        e.preventDefault()
+        setManualBrushRadius((r) => Math.min(48, r + 4))
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [manualBrushOn])
+
+  const releaseManualCapture = useCallback(() => {
+    const c = manualCaptureRef.current
+    manualCaptureRef.current = null
+    if (!c) return
+    try {
+      if (c.el.hasPointerCapture(c.pointerId)) c.el.releasePointerCapture(c.pointerId)
+    } catch {
+      /* */
+    }
+  }, [])
+
+  /** Black outline strokes on overlay; apply Cut outside/inside to update the mask. */
+  const paintManualOutlineAt = useCallback(
+    (clientX: number, clientY: number) => {
+      const canvas = manualStrokeOverlayRef.current
+      if (!canvas) return
+      ensureManualStrokeOverlayFit()
+      const rect = canvas.getBoundingClientRect()
+      if (rect.width <= 0 || rect.height <= 0) return
+      const octx = canvas.getContext('2d')
+      if (!octx) return
+      const x = clientX - rect.left
+      const y = clientY - rect.top
+      const lineW = Math.max(2, manualBrushRadius)
+      octx.save()
+      octx.fillStyle = '#000000'
+      octx.strokeStyle = '#000000'
+      octx.lineWidth = lineW
+      octx.lineCap = 'round'
+      octx.lineJoin = 'round'
+      if (manualLastCss.current == null) {
+        octx.beginPath()
+        octx.arc(x, y, lineW / 2, 0, Math.PI * 2)
+        octx.fill()
+      } else {
+        octx.beginPath()
+        octx.moveTo(manualLastCss.current.x, manualLastCss.current.y)
+        octx.lineTo(x, y)
+        octx.stroke()
+      }
+      octx.restore()
+      manualLastCss.current = { x, y }
+      manualPaintedInStroke.current = true
+    },
+    [manualBrushRadius, ensureManualStrokeOverlayFit],
+  )
+
+  const onManualPointerDown = useCallback(
+    (e: React.PointerEvent<HTMLCanvasElement>) => {
+      if (!manualBrushOn || e.button !== 0) return
+      e.preventDefault()
+      const el = e.currentTarget
+      try {
+        el.setPointerCapture(e.pointerId)
+        manualCaptureRef.current = { el, pointerId: e.pointerId }
+      } catch {
+        manualCaptureRef.current = null
+      }
+      manualLastCss.current = null
+      ensureManualStrokeOverlayFit()
+      manualPainting.current = true
+      paintManualOutlineAt(e.clientX, e.clientY)
+    },
+    [manualBrushOn, paintManualOutlineAt, ensureManualStrokeOverlayFit],
+  )
+
+  const onManualPointerMove = useCallback(
+    (e: React.PointerEvent<HTMLCanvasElement>) => {
+      if (!manualBrushOn) return
+      const canvas = manualStrokeOverlayRef.current
+      if (canvas) {
+        const rect = canvas.getBoundingClientRect()
+        setManualCursor({ x: e.clientX - rect.left, y: e.clientY - rect.top })
+      }
+      if (!manualPainting.current) return
+      paintManualOutlineAt(e.clientX, e.clientY)
+    },
+    [manualBrushOn, paintManualOutlineAt],
+  )
+
+  const onManualPointerUp = useCallback(() => {
+    if (manualPainting.current && manualPaintedInStroke.current) {
+      pushManualUndo()
+    }
+    manualPainting.current = false
+    manualPaintedInStroke.current = false
+    manualLastCss.current = null
+    releaseManualCapture()
+  }, [pushManualUndo, releaseManualCapture])
+
+  const onManualPointerLeave = useCallback(() => {
+    setManualCursor(null)
+  }, [])
+
+  const applyManualCutOutside = useCallback(() => {
+    setManualCutHint(null)
+    const mask = manualMaskRef.current
+    const oc = manualStrokeOverlayRef.current
+    if (!mask || !oc) return
+    const res = cutMaskOutsideBlackLine(mask, oc)
+    if (!res.ok) {
+      setManualCutHint(res.reason)
+      return
+    }
+    ensureManualStrokeOverlayFit()
+    oc.getContext('2d')?.clearRect(0, 0, oc.width, oc.height)
+    pushManualUndo()
+    recomposeManualCutout()
+  }, [ensureManualStrokeOverlayFit, pushManualUndo, recomposeManualCutout])
+
+  const applyManualCutInside = useCallback(() => {
+    setManualCutHint(null)
+    const mask = manualMaskRef.current
+    const oc = manualStrokeOverlayRef.current
+    if (!mask || !oc) return
+    const res = cutMaskInsideBlackLine(mask, oc)
+    if (!res.ok) {
+      setManualCutHint(res.reason)
+      return
+    }
+    ensureManualStrokeOverlayFit()
+    oc.getContext('2d')?.clearRect(0, 0, oc.width, oc.height)
+    pushManualUndo()
+    recomposeManualCutout()
+  }, [ensureManualStrokeOverlayFit, pushManualUndo, recomposeManualCutout])
+
+  const undoManualBrush = useCallback(() => {
+    const mask = manualMaskRef.current
+    const mctx = mask?.getContext('2d')
+    if (!mask || !mctx || manualUndoStack.current.length < 2) return
+    manualUndoStack.current.pop()
+    const prev = manualUndoStack.current[manualUndoStack.current.length - 1]
+    if (prev) mctx.putImageData(prev.mask, 0, 0)
+    ensureManualStrokeOverlayFit()
+    const oc = manualStrokeOverlayRef.current
+    const octx = oc?.getContext('2d')
+    if (octx && prev && oc) {
+      if (prev.overlay.width <= 1 && prev.overlay.height <= 1) {
+        octx.clearRect(0, 0, oc.width, oc.height)
+      } else if (prev.overlay.width === oc.width && prev.overlay.height === oc.height) {
+        octx.putImageData(prev.overlay, 0, 0)
+      } else {
+        octx.clearRect(0, 0, oc.width, oc.height)
+      }
+    }
+    recomposeManualCutout()
+  }, [ensureManualStrokeOverlayFit, recomposeManualCutout])
+
+  const clearManualBrush = useCallback(() => {
+    const mask = manualMaskRef.current
+    if (!mask) return
+    resetKeepMaskFull(mask)
+    ensureManualStrokeOverlayFit()
+    const oc = manualStrokeOverlayRef.current
+    oc?.getContext('2d')?.clearRect(0, 0, oc.width, oc.height)
+    pushManualUndo()
+    recomposeManualCutout()
+  }, [ensureManualStrokeOverlayFit, pushManualUndo, recomposeManualCutout])
+
+  const applyManualAsSource = useCallback(async () => {
+    if (!onApplyRefinedImage || !manualCutoutUrl) return
+    try {
+      const out = document.createElement('canvas')
+      await drawDataUrlToCanvas(manualCutoutUrl, out)
+      const f = await canvasToSourceAlignedFile(out, sourceFile ?? null)
+      onApplyRefinedImage(f)
+      setManualBrushOn(false)
+    } catch {
+      /* parent may toast */
+    }
+  }, [onApplyRefinedImage, manualCutoutUrl, sourceFile])
+
   // --- Mask refine (MobileSAM) — offscreen canvases via refs (not useMemo) for eslint immutability ---
   const maskCanvasElRef = useRef<HTMLCanvasElement | null>(null)
   const subjectCanvasElRef = useRef<HTMLCanvasElement | null>(null)
@@ -273,8 +602,18 @@ export function BeforeAfter({
   }, [ensureOffscreenCanvases, samOutputMode])
 
   useEffect(() => {
+    if (manualBrushOn && manualCutoutUrl) {
+      onRefinedAfterDataUrlChange?.(manualCutoutUrl)
+      return
+    }
     onRefinedAfterDataUrlChange?.(refineAvailable ? refinedAfterUrl : null)
-  }, [refineAvailable, refinedAfterUrl, onRefinedAfterDataUrlChange])
+  }, [
+    manualBrushOn,
+    manualCutoutUrl,
+    refineAvailable,
+    refinedAfterUrl,
+    onRefinedAfterDataUrlChange,
+  ])
 
   const initialUndoSeededRef = useRef(false)
 
@@ -592,7 +931,9 @@ export function BeforeAfter({
     }
   }, [onApplyRefinedImage, samOutputMode, sourceFile, ensureOffscreenCanvases])
 
-  const displayAfterSrc = refinedAfterUrl ?? afterSrc
+  const displayAfterSrc = (manualBrushOn && manualCutoutUrl ? manualCutoutUrl : null) ?? refinedAfterUrl ?? afterSrc
+
+  const refinePaintActive = refineAvailable && !manualBrushOn
 
   const renderSamOverlay = () => {
     if (!samActive || !sam) return null
@@ -654,12 +995,67 @@ export function BeforeAfter({
             Slider
           </button>
         </div>
+        <div className="seg seg--compact" role="group" aria-label="Manual brush">
+          <button
+            type="button"
+            className={manualBrushOn ? 'seg__btn seg__btn--on' : 'seg__btn'}
+            aria-pressed={manualBrushOn}
+            onClick={() => setManualBrushOn((v) => !v)}
+            title="Draw a closed outline, then Cut outside or inside — no SAM required"
+          >
+            Manual Brush
+          </button>
+        </div>
         {lastKind && (
           <span className="before-after__badge" title="Output of last operation">
             last: {lastKind}
           </span>
         )}
       </div>
+
+      {manualBrushOn && (
+        <div className="before-after__manual-brush-bar" role="region" aria-label="Manual Brush cutout">
+          <span className="before-after__manual-brush-title">Manual Brush — no SAM</span>
+          <span className="before-after__manual-brush-sub">
+            Draw a closed <strong>black outline</strong> on Before. <strong>Cut outside line</strong> zeros
+            everything outside the loop; <strong>Cut inside line</strong> zeros everything inside. Close small
+            gaps so regions do not leak to the edge. Use <kbd>[</kbd> <kbd>]</kbd> for brush size.
+          </span>
+          <label className="before-after__mask-refine-field">
+            <span>Brush</span>
+            <input
+              type="range"
+              min={4}
+              max={48}
+              value={manualBrushRadius}
+              onChange={(e) => setManualBrushRadius(Number(e.target.value))}
+            />
+          </label>
+          <button type="button" className="btn btn--primary btn--sm" onClick={applyManualCutOutside}>
+            Cut outside line
+          </button>
+          <button type="button" className="btn btn--primary btn--sm" onClick={applyManualCutInside}>
+            Cut inside line
+          </button>
+          <button type="button" className="btn btn--ghost btn--sm" onClick={undoManualBrush}>
+            Undo
+          </button>
+          <button type="button" className="btn btn--ghost btn--sm" onClick={clearManualBrush}>
+            Reset
+          </button>
+          {onApplyRefinedImage && (
+            <button
+              type="button"
+              className="btn btn--sm"
+              disabled={!manualCutoutUrl}
+              onClick={() => void applyManualAsSource()}
+            >
+              Use as source
+            </button>
+          )}
+          {manualCutHint && <p className="before-after__mask-refine-hint">{manualCutHint}</p>}
+        </div>
+      )}
 
       {samActive && sam && samStep && (
         <div className="before-after__sam-bar" role="toolbar" aria-label="MobileSAM prompt">
@@ -736,9 +1132,9 @@ export function BeforeAfter({
         </div>
       )}
 
-      {refineAvailable && onApplyRefinedImage && (
+      {refineAvailable && onApplyRefinedImage && !manualBrushOn && (
         <div className="before-after__mask-refine-bar" role="region" aria-label="Mask refinement">
-          <span className="before-after__mask-refine-title">Manual segmentation</span>
+          <span className="before-after__mask-refine-title">Manual segmentation (after SAM)</span>
           <span className="before-after__mask-refine-sub">
             Draw a closed <strong>black outline</strong>. <strong>Cut outside line</strong> removes everything
             outside the loop from the mask; <strong>Cut inside line</strong> removes everything inside (like
@@ -780,9 +1176,44 @@ export function BeforeAfter({
           <div className="before-after__split">
             <figure>
               <figcaption>
-                Before {samActive && <span className="before-after__sam-hint">(click / drag to prompt SAM)</span>}
+                Before{' '}
+                {manualBrushOn ? (
+                  <span className="before-after__manual-brush-hint">(draw outline on image)</span>
+                ) : (
+                  samActive && <span className="before-after__sam-hint">(click / drag to prompt SAM)</span>
+                )}
               </figcaption>
-              {samActive ? (
+              {manualBrushOn ? (
+                <div
+                  ref={manualBeforeWrapRef}
+                  className="before-after__img-wrap before-after__img-wrap--manual-brush"
+                >
+                  <img src={beforeUrl} alt="Original" draggable={false} />
+                  <canvas
+                    ref={manualStrokeOverlayRef}
+                    className="before-after__brush-overlay before-after__manual-stroke-overlay"
+                    aria-label="Draw outline around subject"
+                    onPointerDown={onManualPointerDown}
+                    onPointerMove={onManualPointerMove}
+                    onPointerUp={onManualPointerUp}
+                    onPointerCancel={onManualPointerUp}
+                    onPointerLeave={onManualPointerLeave}
+                    onLostPointerCapture={onManualPointerUp}
+                  />
+                  {manualCursor && (
+                    <span
+                      className="before-after__manual-brush-cursor"
+                      style={{
+                        left: manualCursor.x,
+                        top: manualCursor.y,
+                        width: manualBrushRadius,
+                        height: manualBrushRadius,
+                      }}
+                      aria-hidden
+                    />
+                  )}
+                </div>
+              ) : samActive ? (
                 <div
                   ref={frameRef}
                   className={`before-after__img-wrap before-after__img-wrap--sam before-after__img-wrap--sam-${sam?.prompt_type ?? 'point'}`}
@@ -806,18 +1237,18 @@ export function BeforeAfter({
             <figure>
               <figcaption>After</figcaption>
               {displayAfterSrc ? (
-                <ZoomableFrame className="before-after__zoom" disabled={refineAvailable}>
+                <ZoomableFrame className="before-after__zoom" disabled={refinePaintActive}>
                   <div
                     ref={afterImgWrapRef}
-                    className={`before-after__img-wrap before-after__img-wrap--reveal${refineAvailable ? ' before-after__img-wrap--refine' : ''}`}
+                    className={`before-after__img-wrap before-after__img-wrap--reveal${refinePaintActive ? ' before-after__img-wrap--refine' : ''}`}
                   >
                     <img
                       src={displayAfterSrc}
                       alt="Processed"
                       draggable={false}
-                      style={refineAvailable ? { pointerEvents: 'none' } : undefined}
+                      style={refinePaintActive ? { pointerEvents: 'none' } : undefined}
                     />
-                    {refineAvailable && (
+                    {refinePaintActive && (
                       <canvas
                         ref={brushOverlayRef}
                         className="before-after__brush-overlay"
@@ -832,7 +1263,11 @@ export function BeforeAfter({
                   </div>
                 </ZoomableFrame>
               ) : (
-                <div className="before-after__placeholder">Run pipeline</div>
+                <div className="before-after__placeholder">
+                  {manualBrushOn
+                    ? 'Draw outline on Before, then Cut outside or inside'
+                    : 'Run pipeline'}
+                </div>
               )}
             </figure>
           </div>
