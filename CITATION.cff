@@ -1,0 +1,28 @@
+cff-version: 1.2.0
+message: "If you use V-Rush, please cite the software and the specific archived release."
+title: "V-Rush: An Interactive Computer-Vision Workbench"
+abstract: >-
+  V-Rush is an interactive browser-based workbench for building, inspecting, and
+  exporting computer-vision pipelines. It combines classical OpenCV operations,
+  ONNX-based detection and segmentation, local-feature matching, image statistics,
+  and reproducible code export.
+type: software
+authors:
+  - family-names: ElBassat
+    given-names: Mohamed
+    email: mohamedd77bassat@gmail.com
+    orcid: "https://orcid.org/0009-0006-3917-1319"
+  - family-names: Aly
+    given-names: Rokayya
+repository-code: "https://github.com/BASSAT-BASSAT/Kernel-"
+url: "https://github.com/BASSAT-BASSAT/Kernel-"
+version: "0.2.0"
+date-released: "2026-10-04"
+keywords:
+  - computer vision
+  - image processing
+  - OpenCV
+  - image segmentation
+  - object detection
+  - feature matching
+license: MIT

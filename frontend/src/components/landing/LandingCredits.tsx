@@ -3,7 +3,7 @@ import { MotionReveal } from '../../motion'
 
 const COFOUNDERS = [
   {
-    name: 'Mohamed Elbassat',
+    name: 'Mohamed ElBassat',
     role: 'Co-Founder · Engineering',
     initials: 'ME',
     email: 'mohamedd77bassat@gmail.com',
@@ -77,7 +77,7 @@ export function LandingCredits() {
           property of their respective owners.
         </p>
         <p className="landing-credits__copyright">
-          &copy; {year} V-Rush&trade;. All rights reserved.
+          &copy; {year} V-Rush&trade;. Source code is available under the MIT License.
         </p>
       </div>
     </MotionReveal>

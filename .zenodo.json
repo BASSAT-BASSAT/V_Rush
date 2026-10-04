@@ -1,0 +1,30 @@
+{
+  "title": "V-Rush: An Interactive Computer-Vision Workbench",
+  "description": "V-Rush is an interactive browser-based workbench for building, inspecting, and exporting computer-vision pipelines. It combines classical OpenCV operations, ONNX-based detection and segmentation, local-feature matching, image statistics, and reproducible code export.",
+  "creators": [
+    {
+      "name": "ElBassat, Mohamed",
+      "email": "mohamedd77bassat@gmail.com",
+      "orcid": "0009-0006-3917-1319"
+    },
+    {
+      "name": "Aly, Rokayya"
+    }
+  ],
+  "keywords": [
+    "computer vision",
+    "image processing",
+    "OpenCV",
+    "image segmentation",
+    "object detection",
+    "feature matching"
+  ],
+  "license": "MIT",
+  "related_identifiers": [
+    {
+      "identifier": "https://github.com/BASSAT-BASSAT/Kernel-",
+      "relation": "isIdenticalTo",
+      "resource_type": "software"
+    }
+  ]
+}

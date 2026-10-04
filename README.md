@@ -1,154 +1,167 @@
 # V-Rush
 
-Classical computer vision playground: stack OpenCV-style operations, run a pipeline on an image, and compare before/after.
+**V-Rush** is an interactive computer-vision workbench for building, inspecting, and
+sharing image-processing pipelines without writing glue code first. It brings
+classical OpenCV operations, neural inference, local-feature matching, image
+statistics, and executable code export into one browser-based studio.
 
-**Co-Founders:** Mohamed Elbassat and Rokayya Aly
+V-Rush is maintained by **Mohamed ElBassat** and **Rokayya Aly**.
 
-## Features
+**Research profile:** [ORCID: 0009-0006-3917-1319](https://orcid.org/0009-0006-3917-1319) ·
+[Google Scholar](https://scholar.google.com/citations?user=cHdwvRsAAAAJ&hl=en)
 
-- **Auth (Supabase):** Email + password sign-in; JWT verified on the Python API for `/api/ops` and `/api/process`.
-- **Database (Supabase Postgres):** `profiles` (synced from signups), `email_subscribers` (footer newsletter), `usage_logs` (one row per successful pipeline run when logged in).
-- **Deploy (recommended):** **All on Vercel** — one project with **Services** ([`vercel.json`](vercel.json)): Vite frontend at `/` and FastAPI at `/api` on the same domain. **Fallback:** API on **Render / Railway / Fly** via [`Dockerfile.backend`](Dockerfile.backend), frontend-only Vercel with `VITE_API_BASE_URL`; optional **single-container** via root [`Dockerfile`](Dockerfile).
+> **Project status:** V-Rush is an active research/prototyping project. Interfaces,
+> supported operations, and deployment details may change between releases.
 
-For a step-by-step go-live list (SQL, Auth URLs, Vercel, CORS), see [`docs/PRODUCTION-CHECKLIST.md`](docs/PRODUCTION-CHECKLIST.md). To regenerate `frontend/.env` and `backend/.env` from `kernellab.env`, run `.\scripts\sync-kernellab-env.ps1` from the repo root.
+## Why V-Rush?
 
-### CV-only deploy (no Supabase, no database)
+Computer-vision experiments often require the same repetitive work: decoding images,
+trying a preprocessing operation, comparing output pixels, tuning parameters, and
+recreating the successful experiment in code. V-Rush makes that loop visual and
+reproducible:
 
-You can ship **only the OpenCV playground**: no login, no Postgres, no JWT setup.
+1. Upload an image and assemble an ordered pipeline.
+2. Run the pipeline and compare before/after output.
+3. Inspect histograms, image statistics, warnings, and model results.
+4. Export the pipeline as Python or save its JSON recipe.
 
-1. **Frontend (Vercel):** Delete or leave empty **`VITE_SUPABASE_URL`** and **`VITE_SUPABASE_ANON_KEY`**. Leave **`VITE_API_BASE_URL`** empty if the API is on the same deployment (Services) or set it to your API URL.
-2. **Backend:** Set **`KERNELLAB_AUTH_DISABLED=1`** so `/api/ops` and `/api/process` work **without** a Bearer token. You can omit **`SUPABASE_JWT_SECRET`**. Set **`CORS_ORIGINS`** to your site origin (e.g. `https://your-app.vercel.app`).
-3. **Redeploy** the frontend (so Vite omits Supabase) and the backend.
+## Capabilities
 
-The UI skips sign-in and the footer newsletter when Supabase is unset. **Anyone** can call your API while `KERNELLAB_AUTH_DISABLED=1`—use only for private demos or lock the deployment down.
+- **Classical computer vision:** intensity and color transforms, denoising, linear
+  filters, edges, morphology, geometric transforms, Fourier analysis, Gabor filters,
+  texture features, and segmentation.
+- **Detection and segmentation:** YOLO26 inference through ONNX Runtime, MobileSAM
+  prompt-based masks, K-Means, Watershed, GrabCut, and connected components.
+- **Image matching:** SIFT, ORB, AKAZE, and BRISK descriptors; BF or FLANN matching;
+  Lowe's ratio test; and RANSAC homography filtering.
+- **Visual diagnostics:** before/after previews, grayscale and RGB histograms, mean,
+  standard deviation, extrema, output dimensions, and pipeline warnings.
+- **Reproducible exports:** generated Python using OpenCV, NumPy, and ONNX Runtime,
+  plus shareable pipeline JSON.
+- **Optional application services:** Supabase authentication and Postgres usage
+  logging, Kaggle dataset integration, and a FastAPI API.
 
-## 1. Supabase setup
+## Repository layout
 
-1. Create a project at [supabase.com](https://supabase.com).
-2. **SQL:** In the SQL Editor, run the migration in [`supabase/migrations/20260415120000_kernellab_auth.sql`](supabase/migrations/20260415120000_kernellab_auth.sql) (tables, RLS, profile trigger).
-3. **API keys (Project Settings → API):**
-   - **Project URL** → `VITE_SUPABASE_URL`
-   - **anon public** key → `VITE_SUPABASE_ANON_KEY`
-   - **JWT Secret** → `SUPABASE_JWT_SECRET` on the backend (used to verify `Authorization: Bearer` tokens).
+| Path | Purpose |
+| --- | --- |
+| [`frontend/`](frontend/) | React, TypeScript, and Vite web application |
+| [`backend/`](backend/) | FastAPI service and computer-vision operations |
+| [`backend/tests/`](backend/tests/) | Backend test suite |
+| [`supabase/`](supabase/) | Database migrations |
+| [`docs/PRODUCTION-CHECKLIST.md`](docs/PRODUCTION-CHECKLIST.md) | Deployment checklist |
+| [`CITATION.cff`](CITATION.cff) | Machine-readable citation metadata |
+| [`LICENSE`](LICENSE) | MIT license for the V-Rush source code |
 
-Enable **Email** auth under Authentication → Providers if it is not already on.
+## Run locally
 
-## 2. Deploy — all on Vercel (recommended)
+### Requirements
 
-This is the **default** setup: **one Vercel project**, **no separate API host**. The repo root [`vercel.json`](vercel.json) defines two **Services**: Vite (`frontend/`) at `/` and FastAPI (`backend/app/main.py`) at `/api`.
+- Python 3.11 or newer
+- Node.js 20 or newer
+- npm
 
-1. In [Vercel](https://vercel.com), **Import** this Git repository.
-2. **Root Directory:** **`.`** (repository root). Do **not** set it to `frontend` for this mode.
-3. **Framework preset:** **Services** (Vercel detects `experimentalServices` in `vercel.json`).
-4. **Environment variables** (Production — set on the right **service** where the dashboard allows, or as shared project vars as documented in Vercel):
-
-   | Where | Variable | Value |
-   |--------|----------|--------|
-   | Frontend build | `VITE_API_BASE_URL` | **Empty** — same-origin calls to `/api/...` |
-   | Frontend build | `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` | From Supabase (§1) |
-   | Backend (Python) | `SUPABASE_JWT_SECRET` | Supabase JWT secret (§1) |
-   | Backend (Python) | `CORS_ORIGINS` | Your site origin(s), e.g. `https://YOUR_PROJECT.vercel.app` (comma-separated, no spaces) |
-   | Optional | `KERNELLAB_AUTH_DISABLED`, `MAX_*` | See table below |
-
-5. **Redeploy** after changing env vars (Vite bakes `VITE_*` at build time).
-
-**Health check:** `GET /api/health` should return JSON with `"status":"ok"`.
-
-Dependencies for the Python service come from [`backend/pyproject.toml`](backend/pyproject.toml) (Vercel uses **uv**; [`backend/uv.lock`](backend/uv.lock) is committed for reproducible installs). See [`docs/PRODUCTION-CHECKLIST.md`](docs/PRODUCTION-CHECKLIST.md) for CLI deploy notes.
-
-**If the Python service fails to build** (bundle size, native wheels, or memory): fall back to [split deploy](#3-split-deploy-vercel--external-api) below.
-
-### Backend environment reference (Vercel or any host)
-
-| Variable | Required | Purpose |
-|----------|----------|---------|
-| `SUPABASE_JWT_SECRET` | Yes (production with auth) | Same as Supabase **JWT Secret** (HS256). |
-| `CORS_ORIGINS` | Yes | Comma-separated origins, e.g. `https://your-app.vercel.app` (no trailing slash on each). |
-| `PORT` | Usually auto | Listen port (default `8000`). |
-| `KERNELLAB_AUTH_DISABLED` | CV-only / dev | Set to `1` to allow `/api/*` **without** a Bearer token. |
-| `MAX_IMAGE_BYTES` | Optional | Default 8 MiB. |
-| `MAX_IMAGE_DIMENSION` | Optional | Default 8192 px. |
-
-**Object detection (YOLO26):** `yolo26_detect` runs on **ONNX Runtime** (CPU) against the committed [`backend/yolo26n.onnx`](backend/yolo26n.onnx) — **no PyTorch / Ultralytics on the server**, which is what keeps the Python function under Vercel's bundle size limit. Ultralytics weights are **AGPL-3.0** — confirm licensing for your use case.
-
-To refresh the ONNX model (only needed if you change the underlying weights), run once locally where `ultralytics` is installed:
-
-```bash
-cd backend
-python -c "from ultralytics import YOLO; YOLO('yolo26n.pt').export(format='onnx', imgsz=640, opset=12, simplify=True)"
-git add yolo26n.onnx && git commit -m "chore: refresh yolo26n.onnx"
-```
-
-**Segmentation (MobileSAM):** the `mobile_sam` op in the studio runs a distilled Segment Anything Model (Apache-2.0 weights) through ONNX Runtime as two files: `backend/mobile_sam_encoder.onnx` (~40 MB, a tiny ViT image encoder) and `backend/mobile_sam_decoder.onnx` (~2 MB, a prompt-conditioned mask decoder). They are **not** committed to the repo because of size — run the one-time export locally before deploying:
-
-```bash
-cd backend
-python -m venv .sam-export && .\.sam-export\Scripts\Activate.ps1   # or: source .sam-export/bin/activate
-pip install torch==2.2.2 torchvision==0.17.2 onnx "onnxruntime>=1.17,<2" git+https://github.com/ChaoningZhang/MobileSAM.git
-curl -LO https://github.com/ChaoningZhang/MobileSAM/raw/master/weights/mobile_sam.pt
-python scripts/export_mobile_sam.py
-git add mobile_sam_encoder.onnx mobile_sam_decoder.onnx
-```
-
-Then uncomment the two `COPY backend/mobile_sam_*.onnx` lines in [`Dockerfile`](Dockerfile) and [`Dockerfile.backend`](Dockerfile.backend). Without these files the `mobile_sam` op returns a clear error at call time; every other op (classical segmentation, YOLO26, etc.) keeps working.
-
-Copy [`frontend/.env.example`](frontend/.env.example) or [`kernellab.env.example`](kernellab.env.example) as a checklist. Run `.\scripts\sync-kernellab-env.ps1` locally to split env into `frontend/.env` and `backend/.env`.
-
-## 3. Split deploy (Vercel + external API)
-
-Use this if you **only** deploy the static app on Vercel or the full-stack Vercel build fails.
-
-1. **Frontend project:** Root Directory **`frontend`**, Framework **Vite**, build `npm run build`, output `dist`.
-2. Set **`VITE_API_BASE_URL`** to your API origin (no trailing slash), e.g. `https://your-api.onrender.com`.
-3. **API:** Deploy [`Dockerfile.backend`](Dockerfile.backend) on Render / Railway / Fly.io and set the same backend env vars as in the table above.
-
-Same Supabase and CORS rules apply; **`CORS_ORIGINS`** on the API must include your Vercel URL.
-
-## 4. Local development
+Install dependencies from the repository root:
 
 ```bash
 make install
 ```
 
-**Option A — Full stack with auth**
-
-- Backend: create `backend/.env` from [`backend/.env.example`](backend/.env.example) with `SUPABASE_JWT_SECRET` and `CORS_ORIGINS` including `http://localhost:5173`.
-- Frontend: `frontend/.env` with `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, and `VITE_API_BASE_URL=` (empty → same-origin) **or** leave API URL empty and use proxy:
+Start the API in one terminal:
 
 ```bash
-make run              # API :8000
-make run-frontend     # Vite :5173, proxies /api → :8000
+make run
 ```
 
-**Option B — No Supabase (quick UI test)**
-
-- Do **not** set `VITE_SUPABASE_URL` in `frontend/.env` (or leave it empty). The UI skips login.
-- Run the API with `KERNELLAB_AUTH_DISABLED=1` (see [`backend/.env.example`](backend/.env.example)).
-
-API routes: `GET /health`, `GET /api/ops`, `POST /api/process` (multipart: `file`, `pipeline` JSON). Authenticated requests must send `Authorization: Bearer <access_token>`.
-
-## 5. Single-container deploy (one URL)
-
-Same origin for UI + API (no CORS friction):
+Start the frontend in a second terminal:
 
 ```bash
-docker build -t kernellab .
-docker run --rm -p 8000:8000 -e PORT=8000 -e SUPABASE_JWT_SECRET=... kernellab
+make run-frontend
 ```
 
-Root [`Dockerfile`](Dockerfile) bakes the Vite build into `/app/static` and sets `STATIC_ROOT`. For auth in production, still set `SUPABASE_JWT_SECRET` in the container env.
+Open <http://localhost:5173>. For a quick local demo without Supabase, leave the
+frontend Supabase variables unset and run the API with `KERNELLAB_AUTH_DISABLED=1`.
+That mode is intended for local or private demos because it disables API
+authentication.
 
-## Smoke test
-
-1. `GET /health` → 200.
-2. Sign in on the deployed site; `/api/ops` returns 200 with Bearer token.
-3. Run a pipeline on an image; check `usage_logs` in Supabase (if migration applied).
-
-## Tests
-
-Backend tests disable API auth via `KERNELLAB_AUTH_DISABLED` in [`backend/tests/conftest.py`](backend/tests/conftest.py).
+Backend tests and linting:
 
 ```bash
 make test
 make lint
 ```
+
+For authentication, database setup, environment variables, and production deployment,
+see [`docs/PRODUCTION-CHECKLIST.md`](docs/PRODUCTION-CHECKLIST.md).
+
+## Models and optional weights
+
+The repository includes `backend/yolo26n.onnx` for the YOLO26 operation. MobileSAM
+encoder and decoder files are optional because of their size; export them locally
+before enabling MobileSAM in a deployment. See the deployment checklist and
+[`backend/scripts/export_mobile_sam.py`](backend/scripts/export_mobile_sam.py) for
+the supported export workflow.
+
+The included model files and third-party model code may have licenses separate from
+this repository. Review the upstream licenses before redistribution or commercial
+use. V-Rush does not claim ownership of third-party model weights.
+
+## Citation and Google Scholar
+
+### Cite the software
+
+For a normal software citation, use the citation shown in [`CITATION.cff`](CITATION.cff).
+GitHub can render that file and provide a **“Cite this repository”** button. After
+creating a release, archive the release with Zenodo to obtain a DOI, then update the
+version and DOI in the citation record.
+
+Example BibTeX (replace the version, date, and DOI after the first Zenodo release):
+
+```bibtex
+@software{elbassat_aly_vrush,
+  author  = {ElBassat, Mohamed and Aly, Rokayya},
+  title   = {V-Rush: An Interactive Computer-Vision Workbench},
+  year    = {2026},
+  version = {0.2.0},
+  url     = {https://github.com/BASSAT-BASSAT/Kernel-},
+  doi     = {10.5281/zenodo.XXXXXXXX}
+}
+```
+
+### Make it discoverable in Google Scholar
+
+Google Scholar generally does **not** treat a GitHub README as a scholarly
+publication. The reliable route is:
+
+1. Create a **public, versioned GitHub release** with a meaningful version and release
+   notes.
+2. Connect the repository to **Zenodo** (enable the GitHub integration), then create a
+   Zenodo release from the GitHub release. Zenodo mints a DOI and exposes structured
+   metadata.
+3. Add the DOI and the archived release URL to [`CITATION.cff`](CITATION.cff), the
+   README, and any paper or technical report describing V-Rush.
+4. Publish a short software paper, technical report, or dataset/methods paper in a
+   scholarly venue that provides a stable public landing page and full bibliographic
+   metadata. Put the DOI and repository URL in that publication.
+5. Add the publication (not only the GitHub URL) to your Google Scholar profile. If
+   Google Scholar has not found it after indexing, use **“Add article manually”** and
+   enter the title, authors, venue, year, DOI, and public URL exactly as they appear
+   in the publication.
+
+Do not create a fake DOI or claim that Google Scholar indexes the repository
+automatically. The DOI identifies the archived software; the scholarly paper is what
+usually makes the work visible and citable in Scholar. Google Scholar controls its
+own indexing schedule, so inclusion cannot be guaranteed.
+
+## Contributing
+
+Issues and pull requests are welcome. Please include reproducible steps, sample
+inputs where redistribution is permitted, and the expected behavior. Do not commit
+credentials, `.env` files, private datasets, or proprietary model weights.
+
+## License
+
+The V-Rush source code is released under the [MIT License](LICENSE). This license
+applies to the project code and documentation unless a file or dependency states
+otherwise. Third-party libraries, model weights, datasets, and generated assets may
+have separate licenses; review their terms before redistribution.
