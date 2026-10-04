@@ -121,12 +121,12 @@ version and DOI in the citation record.
 Example BibTeX for the archived software release:
 
 ```bibtex
-@software{elbassat_aly_vrush,
+@software{elbassat2026vrush,
   author  = {ElBassat, Mohamed and Aly, Rokayya and Elkerdany, Seifeldin},
   title   = {V-Rush: An Interactive Computer-Vision Workbench},
   year    = {2026},
   version = {0.2.0},
-  url     = {https://github.com/BASSAT-BASSAT/Kernel-},
+  url     = {https://github.com/BASSAT-BASSAT/V_Rush},
   doi     = {10.5281/zenodo.23137374}
 }
 ```
