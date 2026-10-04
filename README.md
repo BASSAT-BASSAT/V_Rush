@@ -11,6 +11,7 @@ V-Rush brings classical OpenCV operations, ONNX inference, feature matching, and
 visual diagnostics into one research-oriented workspace.
 
 <p>
+  <a href="https://v-rush.vercel.app/">Live demo</a> ·
   <a href="https://github.com/BASSAT-BASSAT/V_Rush">Repository</a> ·
   <a href="https://doi.org/10.5281/zenodo.23137374">Concept DOI</a> ·
   <a href="https://doi.org/10.5281/zenodo.23137477">v0.2.2 DOI</a> ·
@@ -25,6 +26,16 @@ visual diagnostics into one research-oriented workspace.
 **Authors:** Mohamed ElBassat · Rokayya Aly · Seifeldin Elkerdany
 
 </div>
+
+## Use V-Rush online
+
+The official hosted V-Rush application is available at:
+
+**[https://v-rush.vercel.app/](https://v-rush.vercel.app/)**
+
+Open the website to try the computer-vision workbench without installing the
+repository locally. The hosted deployment may require authentication for protected
+features, and available model operations depend on the production configuration.
 
 ## What is V-Rush?
 
