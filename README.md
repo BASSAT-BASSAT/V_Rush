@@ -125,11 +125,15 @@ Example BibTeX for the archived software release:
   author  = {ElBassat, Mohamed and Aly, Rokayya and Elkerdany, Seifeldin},
   title   = {V-Rush: An Interactive Computer-Vision Workbench},
   year    = {2026},
-  version = {0.2.0},
+  version = {0.2.2},
   url     = {https://github.com/BASSAT-BASSAT/V_Rush},
-  doi     = {10.5281/zenodo.23137374}
+  doi     = {10.5281/zenodo.23137477}
 }
 ```
+
+This citation identifies the archived `v0.2.2` release. The Zenodo concept DOI
+for all V-Rush versions is
+[10.5281/zenodo.23137374](https://doi.org/10.5281/zenodo.23137374).
 
 ### Make it discoverable in Google Scholar
 
