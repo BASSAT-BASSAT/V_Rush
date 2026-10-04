@@ -14,8 +14,11 @@ authors:
     orcid: "https://orcid.org/0009-0006-3917-1319"
   - family-names: Aly
     given-names: Rokayya
+  - family-names: Elkerdany
+    given-names: Seifeldin
 repository-code: "https://github.com/BASSAT-BASSAT/Kernel-"
 url: "https://github.com/BASSAT-BASSAT/Kernel-"
+doi: "10.5281/zenodo.23137374"
 version: "0.2.0"
 date-released: "2026-10-04"
 keywords:

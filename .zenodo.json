@@ -9,6 +9,9 @@
     },
     {
       "name": "Aly, Rokayya"
+    },
+    {
+      "name": "Elkerdany, Seifeldin"
     }
   ],
   "keywords": [
@@ -20,6 +23,7 @@
     "feature matching"
   ],
   "license": "MIT",
+  "publication_date": "2026-10-04",
   "related_identifiers": [
     {
       "identifier": "https://github.com/BASSAT-BASSAT/Kernel-",

@@ -1,11 +1,14 @@
 # V-Rush
 
+[![DOI](https://zenodo.org/badge/1211194989.svg)](https://doi.org/10.5281/zenodo.23137374)
+
 **V-Rush** is an interactive computer-vision workbench for building, inspecting, and
 sharing image-processing pipelines without writing glue code first. It brings
 classical OpenCV operations, neural inference, local-feature matching, image
 statistics, and executable code export into one browser-based studio.
 
-V-Rush is maintained by **Mohamed ElBassat** and **Rokayya Aly**.
+V-Rush is maintained by **Mohamed ElBassat**, **Rokayya Aly**, and
+**Seifeldin Elkerdany**.
 
 **Research profile:** [ORCID: 0009-0006-3917-1319](https://orcid.org/0009-0006-3917-1319) ·
 [Google Scholar](https://scholar.google.com/citations?user=cHdwvRsAAAAJ&hl=en)
@@ -115,16 +118,16 @@ GitHub can render that file and provide a **“Cite this repository”** button.
 creating a release, archive the release with Zenodo to obtain a DOI, then update the
 version and DOI in the citation record.
 
-Example BibTeX (replace the version, date, and DOI after the first Zenodo release):
+Example BibTeX for the archived software release:
 
 ```bibtex
 @software{elbassat_aly_vrush,
-  author  = {ElBassat, Mohamed and Aly, Rokayya},
+  author  = {ElBassat, Mohamed and Aly, Rokayya and Elkerdany, Seifeldin},
   title   = {V-Rush: An Interactive Computer-Vision Workbench},
   year    = {2026},
   version = {0.2.0},
   url     = {https://github.com/BASSAT-BASSAT/Kernel-},
-  doi     = {10.5281/zenodo.XXXXXXXX}
+  doi     = {10.5281/zenodo.23137374}
 }
 ```
 

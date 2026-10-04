@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { MotionReveal } from '../../motion'
 
-const COFOUNDERS = [
+const AUTHORS = [
   {
     name: 'Mohamed ElBassat',
     role: 'Co-Founder · Engineering',
@@ -13,6 +13,12 @@ const COFOUNDERS = [
     role: 'Co-Founder · Engineering',
     initials: 'RA',
     email: 'mohamedd77bassat@gmail.com',
+  },
+  {
+    name: 'Seifeldin Elkerdany',
+    role: 'Author · Engineering',
+    initials: 'SE',
+    email: '',
   },
 ]
 
@@ -32,7 +38,7 @@ export function LandingCredits() {
       <header className="landing-credits__head">
         <span className="landing-credits__eyebrow">The team</span>
         <h2 id="landing-credits-title" className="landing-credits__title">
-          Built by two founders who live in the pixels.
+          Built by a team that lives in the pixels.
         </h2>
         <p className="landing-credits__lede">
           V-Rush is an independent studio project. We answer our own email, ship our own code,
@@ -41,7 +47,7 @@ export function LandingCredits() {
       </header>
 
       <ul className="landing-credits__people" role="list">
-        {COFOUNDERS.map((person) => (
+        {AUTHORS.map((person) => (
           <li key={person.name} className="landing-credits__card">
             <div className="landing-credits__avatar" aria-hidden>
               {person.initials}
