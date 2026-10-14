@@ -20,7 +20,12 @@ import {
   saveProjectToIndexedDb,
   verifyProjectInIndexedDb,
 } from '../lib/annotationStorage'
-import { createIdentity, pruneUnusedIdentities } from '../lib/reidHelpers'
+import {
+  createIdentity,
+  identityHotkeyBadge,
+  identityHotkeyIndex,
+  pruneUnusedIdentities,
+} from '../lib/reidHelpers'
 import { extractVideoFrames } from '../lib/videoFrames'
 import { COCO80_CLASS_NAMES } from '../lib/coco80'
 import type { AnnotatedFrame, AnnotationBox, ReIdIdentity, VideoAnnotationProject } from '../types/annotate'
@@ -144,6 +149,21 @@ export function AnnotatePage() {
     setSelectedBoxId(null)
     setInfoMessage('Box removed from this frame.')
   }, [selectedBoxId, currentFrame, updateFrameBoxes])
+
+  const applyReidToSelection = useCallback(
+    (reidId: string) => {
+      if (!project) return
+      const label = project.identities[reidId]?.displayName ?? reidId
+      if (selectedBoxId && currentFrame) {
+        updateFrameBoxes(
+          currentFrame.boxes.map((b) => (b.id === selectedBoxId ? { ...b, reidId } : b)),
+        )
+        setInfoMessage(`Re-ID set to ${label} (box kept, no redraw).`)
+      }
+      setActiveReidId(reidId)
+    },
+    [project, selectedBoxId, currentFrame, updateFrameBoxes],
+  )
 
   const detectOpts = useMemo(
     () => ({
@@ -397,15 +417,43 @@ export function AnnotatePage() {
         setSelectedBoxId(null)
       } else if (e.key === 'n' || e.key === 'N') {
         addIdentity()
-      } else if (e.key >= '1' && e.key <= '9') {
-        const idx = Number(e.key) - 1
-        const ident = identityList[idx]
-        if (ident) setActiveReidId(ident.id)
+      } else if (e.key === '[' || e.key === ']') {
+        if (identityList.length === 0) return
+        e.preventDefault()
+        const selectedReid =
+          selectedBoxId && currentFrame
+            ? currentFrame.boxes.find((b) => b.id === selectedBoxId)?.reidId
+            : null
+        const curIdx = selectedReid
+          ? identityList.findIndex((i) => i.id === selectedReid)
+          : identityList.findIndex((i) => i.id === activeReidId)
+        const base = curIdx >= 0 ? curIdx : 0
+        const nextIdx =
+          e.key === ']'
+            ? (base + 1) % identityList.length
+            : (base - 1 + identityList.length) % identityList.length
+        const ident = identityList[nextIdx]
+        if (ident) applyReidToSelection(ident.id)
+      } else {
+        const idx = identityHotkeyIndex(e.key)
+        if (idx !== null) {
+          const ident = identityList[idx]
+          if (ident) applyReidToSelection(ident.id)
+        }
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [project, selectedBoxId, currentFrame, deleteSelectedBox, addIdentity, identityList])
+  }, [
+    project,
+    selectedBoxId,
+    currentFrame,
+    deleteSelectedBox,
+    addIdentity,
+    identityList,
+    applyReidToSelection,
+    activeReidId,
+  ])
 
   const filteredCoco = useMemo(() => {
     const q = classFilter.trim().toLowerCase()
@@ -605,8 +653,8 @@ export function AnnotatePage() {
                 Delete selected box
               </button>
               <span className="panel-hint annotate__hints">
-                Click a box to select · <kbd>Del</kbd> delete · <kbd>Esc</kbd> deselect · drag empty
-                area to draw
+                Click a box · <kbd>1</kbd>–<kbd>9</kbd>/<kbd>0</kbd> Re-ID · <kbd>[</kbd>
+                <kbd>]</kbd> cycle · <kbd>Del</kbd> delete
               </span>
             </div>
           </section>
@@ -616,17 +664,32 @@ export function AnnotatePage() {
             <button type="button" className="btn btn--sm" onClick={addIdentity}>
               + New person
             </button>
+            <p className="panel-hint annotate__identity-hint">
+              {selectedBox
+                ? 'Reassign: click a person, 1–9/0 for first ten, or [ ] to cycle everyone.'
+                : 'Active for new boxes: click a person, 1–9/0 for first ten, or [ ] to cycle.'}
+            </p>
             <ul className="annotate__identity-list">
-              {identityList.map((ident, i) => (
+              {identityList.map((ident, i) => {
+                const hotkey = identityHotkeyBadge(i)
+                return (
                 <li key={ident.id}>
                   <button
                     type="button"
-                    className={`annotate__identity${activeReidId === ident.id ? ' annotate__identity--on' : ''}`}
-                    onClick={() => setActiveReidId(ident.id)}
+                    className={`annotate__identity${
+                      selectedBox?.reidId === ident.id ? ' annotate__identity--assigned' : ''
+                    }${activeReidId === ident.id ? ' annotate__identity--on' : ''}`}
+                    onClick={() => applyReidToSelection(ident.id)}
                   >
                     <span className="annotate__swatch" style={{ background: ident.color }} />
                     <span>{ident.displayName}</span>
-                    <kbd className="annotate__kbd">{i + 1}</kbd>
+                    {hotkey ? (
+                      <kbd className="annotate__kbd">{hotkey}</kbd>
+                    ) : (
+                      <span className="annotate__kbd annotate__kbd--muted" title="Use [ ] to cycle">
+                        {i + 1}
+                      </span>
+                    )}
                   </button>
                   <label className="annotate__caption-field">
                     <span>Identity caption</span>
@@ -663,7 +726,8 @@ export function AnnotatePage() {
                     }}
                   />
                 </li>
-              ))}
+                )
+              })}
             </ul>
 
             <h3 className="annotate__dock-title">Selected box</h3>

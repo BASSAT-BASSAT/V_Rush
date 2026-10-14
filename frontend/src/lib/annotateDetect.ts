@@ -2,6 +2,7 @@ import { detectFrameForAnnotation } from '../api/cv'
 import type { AnnotatedFrame, AnnotationBox, VideoAnnotationProject } from '../types/annotate'
 import {
   assignReidFromPreviousFrame,
+  assignReidFromReferenceBoxes,
   clampBbox,
   createIdentity,
   pruneUnusedIdentities,
@@ -32,9 +33,11 @@ function detectionsToBoxes(
     return { boxes: assigned.boxes, identities: assigned.identities }
   }
 
-  // Re-run YOLO on a frame that already has boxes — match by IoU instead of new IDs.
+  // Re-run YOLO on a frame that already has boxes — refresh bbox, keep box id + corrected reidId.
   if (frame.boxes.length > 0) {
-    const assigned = assignReidFromPreviousFrame(dets, frame.boxes, identities, defaultClass)
+    const assigned = assignReidFromReferenceBoxes(dets, frame.boxes, identities, defaultClass, {
+      preserveMatchedBoxes: true,
+    })
     return { boxes: assigned.boxes, identities: assigned.identities }
   }
 

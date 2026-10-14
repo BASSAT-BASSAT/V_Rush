@@ -13,6 +13,20 @@ export function newReidId(className: string, existing: Record<string, ReIdIdenti
 }
 
 /** Stable label from id (e.g. person_2 → Person 2), not from how many identities exist. */
+/** Map digit key to identity list index: 1→0 … 9→8, 0→9 (10th person). */
+export function identityHotkeyIndex(key: string): number | null {
+  if (key >= '1' && key <= '9') return Number(key) - 1
+  if (key === '0') return 9
+  return null
+}
+
+/** Badge for sidebar (null = no single-key shortcut; use [ ] to cycle). */
+export function identityHotkeyBadge(listIndex: number): string | null {
+  if (listIndex < 9) return String(listIndex + 1)
+  if (listIndex === 9) return '0'
+  return null
+}
+
 export function defaultDisplayNameForReidId(id: string, fallbackIndex: number): string {
   const match = id.match(/_(\d+)$/)
   if (match) {
@@ -81,31 +95,51 @@ export function clampBbox(
   return [nx1, ny1, nx2, ny2]
 }
 
-/** Match new detection boxes to previous frame boxes by IoU for Re-ID continuity. */
-export function assignReidFromPreviousFrame(
+export interface AssignDetectionsOptions {
+  iouThreshold?: number
+  /** When true (same-frame YOLO refresh), keep box id + user-chosen reidId; only update geometry. */
+  preserveMatchedBoxes?: boolean
+}
+
+/** Match detections to reference boxes by IoU; optionally update matched boxes in place. */
+export function assignReidFromReferenceBoxes(
   detections: Array<{ bbox: [number, number, number, number]; className: string; confidence: number }>,
-  previousBoxes: AnnotationBox[],
+  referenceBoxes: AnnotationBox[],
   identities: Record<string, ReIdIdentity>,
   defaultClass: string,
-  iouThreshold = 0.35,
+  options: AssignDetectionsOptions = {},
 ): { boxes: AnnotationBox[]; identities: Record<string, ReIdIdentity> } {
+  const iouThreshold = options.iouThreshold ?? 0.35
+  const preserveMatchedBoxes = options.preserveMatchedBoxes ?? false
   const nextIdentities = { ...identities }
-  const usedPrev = new Set<string>()
+  const usedRef = new Set<string>()
   const boxes: AnnotationBox[] = []
 
   for (const det of detections) {
     let best: { box: AnnotationBox; iou: number } | null = null
-    for (const pb of previousBoxes) {
-      if (usedPrev.has(pb.id)) continue
-      const iou = boxIoU(det.bbox, pb.bbox)
+    for (const ref of referenceBoxes) {
+      if (usedRef.has(ref.id)) continue
+      const iou = boxIoU(det.bbox, ref.bbox)
       if (iou >= iouThreshold && (!best || iou > best.iou)) {
-        best = { box: pb, iou }
+        best = { box: ref, iou }
       }
+    }
+
+    if (best && preserveMatchedBoxes) {
+      usedRef.add(best.box.id)
+      boxes.push({
+        ...best.box,
+        bbox: det.bbox,
+        confidence: det.confidence,
+        className: (det.className || defaultClass).toLowerCase(),
+        source: 'yolo26',
+      })
+      continue
     }
 
     let reidId: string
     if (best) {
-      usedPrev.add(best.box.id)
+      usedRef.add(best.box.id)
       reidId = best.box.reidId
     } else {
       const ident = createIdentity(det.className || defaultClass, nextIdentities)
@@ -125,4 +159,18 @@ export function assignReidFromPreviousFrame(
   }
 
   return { boxes, identities: nextIdentities }
+}
+
+/** Match new detection boxes to previous frame boxes by IoU for Re-ID continuity. */
+export function assignReidFromPreviousFrame(
+  detections: Array<{ bbox: [number, number, number, number]; className: string; confidence: number }>,
+  previousBoxes: AnnotationBox[],
+  identities: Record<string, ReIdIdentity>,
+  defaultClass: string,
+  iouThreshold = 0.35,
+): { boxes: AnnotationBox[]; identities: Record<string, ReIdIdentity> } {
+  return assignReidFromReferenceBoxes(detections, previousBoxes, identities, defaultClass, {
+    iouThreshold,
+    preserveMatchedBoxes: false,
+  })
 }
