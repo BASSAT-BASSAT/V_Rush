@@ -160,3 +160,76 @@ class KaggleDatasetSummary(BaseModel):
 class KaggleSearchResponse(BaseModel):
     query: str
     datasets: list[KaggleDatasetSummary]
+
+
+# =========================
+# ANNOTATE ( /annotate/* )
+# =========================
+
+
+class AnnotateDetectResponse(BaseModel):
+    width: int
+    height: int
+    detections: list[DetectionItem] = Field(default_factory=list)
+
+
+class AnnotateCapabilitiesResponse(BaseModel):
+    local_disk_enabled: bool
+    local_annotations_dir: str | None = None
+
+
+class AnnotationBoxIn(BaseModel):
+    id: str
+    className: str
+    reidId: str
+    bbox: list[float] = Field(..., min_length=4, max_length=4)
+    confidence: float | None = None
+    source: str = Field(default="manual", description="yolo26 | manual")
+    caption: str = ""
+
+
+class AnnotatedFrameIn(BaseModel):
+    frameIndex: int
+    timestampSec: float
+    imageBase64: str | None = Field(
+        default=None,
+        description="Optional JPEG/PNG base64 for persisting frame to local disk.",
+    )
+    mime: str = "image/jpeg"
+    boxes: list[AnnotationBoxIn] = Field(default_factory=list)
+
+
+class ReIdIdentityIn(BaseModel):
+    id: str
+    displayName: str
+    className: str
+    color: str
+    caption: str = ""
+
+
+class AnnotationProjectPayload(BaseModel):
+    id: str
+    videoName: str
+    width: int
+    height: int
+    durationSec: float = 0.0
+    sampleFps: float = 1.0
+    targetClasses: list[str] = Field(default_factory=list)
+    identities: dict[str, ReIdIdentityIn] = Field(default_factory=dict)
+    frames: list[AnnotatedFrameIn] = Field(default_factory=list)
+    updatedAt: str | None = None
+
+
+class AnnotationProjectSummary(BaseModel):
+    id: str
+    videoName: str
+    frameCount: int
+    boxCount: int
+    identityCount: int
+    updatedAt: str | None = None
+
+
+class AnnotationProjectSaveResponse(BaseModel):
+    id: str
+    saved: bool
+    path: str | None = None

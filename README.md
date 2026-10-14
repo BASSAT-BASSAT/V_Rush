@@ -7,8 +7,8 @@
 ### An interactive workbench for reproducible computer-vision pipelines
 
 Build, inspect, compare, and export image-processing experiments from the browser.
-V-Rush brings classical OpenCV operations, ONNX inference, feature matching, and
-visual diagnostics into one research-oriented workspace.
+V-Rush brings classical OpenCV operations, ONNX inference, feature matching,
+**video Re-ID annotation**, and visual diagnostics into one research-oriented workspace.
 
 <p>
   <a href="https://v-rush.vercel.app/">Live demo</a> ·
@@ -42,12 +42,12 @@ features, and available model operations depend on the production configuration.
 V-Rush is a browser-based computer-vision laboratory for the part of the workflow
 that usually gets buried under boilerplate:
 
-1. Load an image.
+1. Load an image — or a video clip for person-centric labeling.
 2. Compose an ordered sequence of operations.
 3. Run the pipeline and inspect the result.
 4. Compare the original and transformed images.
 5. Examine histograms, statistics, detections, and warnings.
-6. Export the experiment as Python or a JSON recipe.
+6. Export the experiment as Python, JSON, or a **Re-ID annotation ZIP**.
 
 It is designed for learning, rapid prototyping, research demonstrations, and
 reproducible experimentation. The interface makes each transformation visible while
@@ -102,6 +102,53 @@ Drop in two images and compare them with local feature methods:
 The matcher helps visualize which correspondences are geometrically consistent rather
 than treating every descriptor match as reliable.
 
+### Annotate — video Re-ID labeling
+
+Open **[`/annotate`](https://v-rush.vercel.app/annotate)** to turn clips into structured
+person tracks for retrieval, training, or downstream captioning workflows.
+
+<table>
+  <tr>
+    <td width="50%">
+      <strong>In the browser</strong><br>
+      Upload a video, sample frames client-side, pre-label with YOLO26, draw or refine
+      boxes, assign per-person colors, and write <em>one caption per Re-ID</em>.
+    </td>
+    <td width="50%">
+      <strong>Export package</strong><br>
+      Download a ZIP with full frames, YOLO sidecar labels, <code>annotations.json</code>,
+      <code>identities.json</code>, and <code>reid_index.json</code> (frame paths + bboxes
+      per identity for cropping).
+    </td>
+  </tr>
+  <tr>
+    <td>
+      <strong>Tracking helpers</strong><br>
+      Optional Re-ID propagation across frames (IoU), safe re-run of YOLO without
+      duplicate “Person 2” rows, and sidebar cleanup when boxes are removed.
+    </td>
+    <td>
+      <strong>Storage</strong><br>
+      Projects live in IndexedDB while you work. On the hosted site, export then
+      purge from the browser. Local clones can mirror to <code>backend/annotations/</code>
+      when <code>ENABLE_LOCAL_ANNOTATIONS=1</code>.
+    </td>
+  </tr>
+</table>
+
+**ZIP layout (`vrush-reid-v1`):**
+
+```text
+annotations.json    # frames, boxes (bbox + reidId), identities
+identities.json     # per-person color, display name, caption
+reid_index.json     # caption + instances[] for crop / retrieval pipelines
+frames/             # sampled JPEGs
+labels/             # YOLO-normalized boxes (class only)
+```
+
+Caption-to-person video retrieval is a natural next step: crop from `reid_index.json`,
+embed crops + identity captions, and query in a shared image–text space.
+
 ### Datasets and accounts
 
 The optional application layer provides Supabase email authentication, profile data,
@@ -114,9 +161,12 @@ the core CV-only demo.
 flowchart LR
     U[Browser user] --> FE[React + TypeScript + Vite]
     FE --> API[FastAPI API]
+    FE --> IDB[IndexedDB projects]
+    FE --> ZIP[Re-ID ZIP export]
     API --> V[Pipeline validation]
     V --> CV[OpenCV operations]
     V --> ONNX[ONNX Runtime models]
+    API --> ANN[Annotate detect API]
     API --> STATS[Image statistics and diagnostics]
     FE --> EXP[Python / JSON export]
     FE -. optional .-> AUTH[Supabase Auth + Postgres]
@@ -139,10 +189,10 @@ V_Rush/
 │   └── src/
 │       ├── components/       Studio, landing, controls, and visualizations
 │       ├── cv/               Frontend operation metadata and export logic
-│       ├── pages/             Studio, Matcher, Datasets, Profile, and Reference
-│       └── lib/               Image, clipboard, auth, and export utilities
+│       ├── pages/             Studio, Matcher, Annotate, Datasets, Profile, Reference
+│       └── lib/               Pipelines, annotation storage, Re-ID helpers, video frames
 ├── backend/                  FastAPI service and CV engine
-│   ├── app/api/              Processing, matching, and dataset routes
+│   ├── app/api/              Process, match, annotate, and dataset routes
 │   ├── app/cv_ops/           Operation registry and implementations
 │   ├── app/processing/       Image I/O, encoding, and statistics
 │   └── tests/                Backend test suite
@@ -184,7 +234,22 @@ Terminal 2 — frontend:
 make run-frontend
 ```
 
-Open <http://localhost:5173>.
+Open <http://localhost:5173> (Studio) or <http://localhost:5173/annotate> (video labeling).
+
+**Windows without `make`:**
+
+```powershell
+# Terminal 1 — API
+cd backend
+python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+
+# Terminal 2 — UI
+cd frontend
+npm run dev
+```
+
+Health check: <http://127.0.0.1:8000/health> · Annotate capabilities:
+<http://127.0.0.1:8000/api/annotate/capabilities>
 
 ### Fast local demo without Supabase
 
@@ -223,6 +288,7 @@ Important production settings include:
 | `SUPABASE_JWT_SECRET` | Backend token verification secret; server-side only |
 | `CORS_ORIGINS` | Comma-separated frontend origins allowed by the API |
 | `KERNELLAB_AUTH_DISABLED` | Local/demo-only switch to disable API auth |
+| `ENABLE_LOCAL_ANNOTATIONS` | When `1`, allow saving annotation projects under `backend/annotations/` |
 | `MAX_IMAGE_BYTES` | Maximum uploaded image size |
 | `MAX_IMAGE_DIMENSION` | Maximum image width or height |
 

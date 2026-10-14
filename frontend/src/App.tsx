@@ -4,6 +4,7 @@ import { AuthScreen } from './components/AuthScreen'
 import { RequireAuth } from './components/RequireAuth'
 import { useAuth } from './hooks/useAuth'
 import { AuthCallbackPage } from './pages/AuthCallbackPage'
+import { AnnotatePage } from './pages/AnnotatePage'
 import { DatasetsPage } from './pages/DatasetsPage'
 import { LandingPage } from './pages/LandingPage'
 import { MatcherPage } from './pages/MatcherPage'
@@ -52,6 +53,14 @@ function App() {
             element={
               <RequireAuth>
                 <DatasetsPage />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="annotate"
+            element={
+              <RequireAuth>
+                <AnnotatePage />
               </RequireAuth>
             }
           />

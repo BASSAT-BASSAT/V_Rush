@@ -24,16 +24,15 @@ export function Hero() {
   return (
     <section className="landing-hero" ref={heroRef}>
       <div className="landing-hero__content">
-        <span className="landing-hero__eyebrow">Classical · Deep · Matcher</span>
+        <span className="landing-hero__eyebrow">Classical · Deep · Matcher · Annotate</span>
         <h1 className="landing-hero__title">
           The visual workbench for<br />
           <span className="landing-hero__grad landing-hero__grad--shimmer">computer vision pipelines.</span>
         </h1>
         <p className="landing-hero__lede">
-          Stack OpenCV ops and run YOLO&nbsp;+&nbsp;MobileSAM in the Studio, or line up two
-          images with SIFT&nbsp;/&nbsp;ORB&nbsp;/&nbsp;AKAZE&nbsp;/&nbsp;BRISK in the Matcher —
-          never write an import. Upload, drag, watch the transform happen side-by-side, with
-          live pixel-value histograms for every step.
+          Stack OpenCV ops and run YOLO&nbsp;+&nbsp;MobileSAM in the Studio, match keypoints in the Matcher,
+          or sample video frames and build a Re-ID annotation set in Annotate — YOLO pre-labels, manual boxes,
+          per-person colors and captions. Upload, drag, compare side-by-side, with live histograms at every step.
         </p>
         <div className="landing-hero__cta-row">
           <MagneticLink to="/studio" className="btn btn--primary btn--lg">
@@ -41,6 +40,9 @@ export function Hero() {
           </MagneticLink>
           <MagneticLink to="/match" className="btn btn--ghost btn--lg">
             Try the Matcher
+          </MagneticLink>
+          <MagneticLink to="/annotate" className="btn btn--ghost btn--lg">
+            Video annotate
           </MagneticLink>
           <MagneticLink to="/reference" className="btn btn--ghost btn--lg">
             Browse operations
@@ -52,6 +54,7 @@ export function Hero() {
           <li className="chip chip--accent">SIFT · ORB · AKAZE · BRISK matchers</li>
           <li className="chip chip--accent">RANSAC homography</li>
           <li className="chip chip--accent">Live histograms</li>
+          <li className="chip chip--accent">Video Re-ID annotate</li>
         </ul>
       </div>
 

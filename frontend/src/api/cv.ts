@@ -185,3 +185,94 @@ export function base64ToFile(base64: string, filename: string, mime = 'image/png
   for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i)
   return new File([bytes], filename, { type: mime })
 }
+
+// =========================
+// ANNOTATE ( /api/annotate/* )
+// =========================
+
+export interface AnnotateDetectResponse {
+  width: number
+  height: number
+  detections: Array<{
+    label: string
+    confidence: number
+    bbox: [number, number, number, number]
+  }>
+}
+
+export interface AnnotateCapabilities {
+  local_disk_enabled: boolean
+  local_annotations_dir: string | null
+}
+
+export interface AnnotationProjectSummary {
+  id: string
+  videoName: string
+  frameCount: number
+  boxCount: number
+  identityCount: number
+  updatedAt: string | null
+}
+
+export async function fetchAnnotateCapabilities(
+  accessToken?: string | null,
+): Promise<AnnotateCapabilities> {
+  const res = await fetch(`${base()}/api/annotate/capabilities`, {
+    headers: authHeaders(accessToken),
+  })
+  if (!res.ok) throw new Error(await readApiError(res, 'Failed to load annotate capabilities'))
+  return res.json() as Promise<AnnotateCapabilities>
+}
+
+export async function detectFrameForAnnotation(
+  file: File,
+  options: { conf: number; maxDet: number; classes: string[] },
+  accessToken?: string | null,
+): Promise<AnnotateDetectResponse> {
+  const form = new FormData()
+  form.append('file', file)
+  form.append('conf', String(options.conf))
+  form.append('max_det', String(options.maxDet))
+  form.append('classes', JSON.stringify(options.classes))
+  const res = await fetch(`${base()}/api/annotate/detect`, {
+    method: 'POST',
+    headers: authHeaders(accessToken),
+    body: form,
+  })
+  if (!res.ok) throw new Error(await readApiError(res, 'Detection failed'))
+  return res.json() as Promise<AnnotateDetectResponse>
+}
+
+export async function saveLocalAnnotationProject(
+  payload: unknown,
+  accessToken?: string | null,
+): Promise<{ id: string; saved: boolean; path: string | null }> {
+  const res = await fetch(`${base()}/api/annotate/local/save`, {
+    method: 'POST',
+    headers: { ...authHeaders(accessToken), 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  if (!res.ok) throw new Error(await readApiError(res, 'Failed to save project locally'))
+  return res.json() as Promise<{ id: string; saved: boolean; path: string | null }>
+}
+
+export async function listLocalAnnotationProjects(
+  accessToken?: string | null,
+): Promise<AnnotationProjectSummary[]> {
+  const res = await fetch(`${base()}/api/annotate/local/list`, {
+    headers: authHeaders(accessToken),
+  })
+  if (!res.ok) throw new Error(await readApiError(res, 'Failed to list local projects'))
+  return res.json() as Promise<AnnotationProjectSummary[]>
+}
+
+export async function deleteLocalAnnotationProject(
+  projectId: string,
+  accessToken?: string | null,
+): Promise<void> {
+  const res = await fetch(`${base()}/api/annotate/local/${encodeURIComponent(projectId)}`, {
+    method: 'DELETE',
+    headers: authHeaders(accessToken),
+  })
+  if (!res.ok) throw new Error(await readApiError(res, 'Failed to delete local project'))
+}

@@ -69,7 +69,10 @@ export function AppLayout() {
                 <div className="brand__text">
                   <p className="brand__eyebrow">Classical computer vision</p>
                   <h1 className="brand__title">V-Rush</h1>
-                  <p className="tagline">Stack OpenCV ops, match keypoints, and pull from Kaggle — one workbench for every pipeline.</p>
+                  <p className="tagline">
+                    Stack OpenCV ops, match keypoints, annotate video with Re-ID labels, and pull from Kaggle — one
+                    workbench for every pipeline.
+                  </p>
                 </div>
               </NavLink>
             </div>
@@ -86,6 +89,9 @@ export function AppLayout() {
                 </NavLink>
                 <NavLink to="/datasets" className={({ isActive }) => `app__nav-link${isActive ? ' app__nav-link--on' : ''}`}>
                   Datasets
+                </NavLink>
+                <NavLink to="/annotate" className={({ isActive }) => `app__nav-link${isActive ? ' app__nav-link--on' : ''}`}>
+                  Annotate
                 </NavLink>
                 <NavLink to="/reference" className={({ isActive }) => `app__nav-link${isActive ? ' app__nav-link--on' : ''}`}>
                   Reference

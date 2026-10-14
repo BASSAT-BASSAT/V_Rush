@@ -30,3 +30,6 @@ supabase/.temp/
 
 # Ultralytics / YOLO weights (downloaded at runtime or in Docker build)
 backend/*.pt
+
+# Local video annotation exports (git clone dev)
+backend/annotations/

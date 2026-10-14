@@ -15,6 +15,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.staticfiles import StaticFiles
 
+from app.api.annotate_routes import router as annotate_router
 from app.api.kaggle_routes import router as kaggle_router
 from app.api.match_routes import router as match_router
 from app.api.routes import router
@@ -37,10 +38,12 @@ app.add_middleware(
 app.include_router(router, prefix="/api")
 app.include_router(match_router, prefix="/api")
 app.include_router(kaggle_router, prefix="/api")
+app.include_router(annotate_router, prefix="/api")
 # Stripped paths for hosts (e.g. Vercel Services ``routePrefix: /api``) that forward ``/api/ops`` as ``/ops``.
 app.include_router(router, prefix="")
 app.include_router(match_router, prefix="")
 app.include_router(kaggle_router, prefix="")
+app.include_router(annotate_router, prefix="")
 # ``GET /health`` is provided by ``router`` (``api_health``) on the no-prefix mount; keep for Docker probes.
 
 

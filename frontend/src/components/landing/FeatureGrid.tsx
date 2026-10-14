@@ -60,6 +60,13 @@ export function FeatureGrid() {
       accent: '#60a5fa',
       icon: <IconCode />,
     },
+    {
+      title: 'Video Re-ID annotate',
+      body:
+        'Upload a clip, sample frames in-browser, YOLO26 pre-label, draw or fix boxes, assign per-person colors and captions, then export ZIP labels for training.',
+      accent: '#fb923c',
+      icon: <IconAnnotate />,
+    },
   ]
 
   const reduced = useReducedMotion()
@@ -173,6 +180,15 @@ function IconCode() {
         strokeLinecap="round"
         strokeLinejoin="round"
       />
+    </svg>
+  )
+}
+function IconAnnotate() {
+  return (
+    <svg viewBox="0 0 24 24" width="28" height="28" fill="none" aria-hidden>
+      <rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" strokeWidth="1.7" />
+      <rect x="7" y="9" width="5" height="6" stroke="currentColor" strokeWidth="1.5" />
+      <rect x="14" y="11" width="4" height="4" stroke="currentColor" strokeWidth="1.5" />
     </svg>
   )
 }
