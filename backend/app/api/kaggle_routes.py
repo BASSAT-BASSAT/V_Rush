@@ -18,6 +18,7 @@ from app.integrations.kaggle import (
     list_dataset_files,
     search_datasets,
 )
+from app.integrations.kaggle_paths import KagglePathError, validate_dataset_file_path
 from app.processing.encode_image import encode_bgr_for_download
 from app.processing.io_image import ImageDecodeError, decode_image_bytes
 from app.schemas import (
@@ -101,8 +102,10 @@ def get_file(
     _validate_slug(owner, "owner")
     _validate_slug(name, "dataset name")
 
-    if not path or ".." in path:
-        raise HTTPException(status_code=400, detail="Invalid file path")
+    try:
+        path = validate_dataset_file_path(path)
+    except KagglePathError:
+        raise HTTPException(status_code=400, detail="Invalid file path") from None
 
     try:
         data = download_dataset_file(

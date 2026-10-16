@@ -15,8 +15,10 @@ export function LandingPage() {
   return (
     <main className="landing">
       <IntroBurst />
-      <Hero />
-      <StatsStrip opCount={opCount} />
+      <div className="landing-hero-band">
+        <Hero />
+        <StatsStrip opCount={opCount} />
+      </div>
       <FeatureGrid />
       <ShowcaseGallery />
       <FooterCta />

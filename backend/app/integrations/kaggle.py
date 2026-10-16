@@ -15,7 +15,17 @@ from urllib.parse import quote
 
 import httpx
 
+from app.integrations.kaggle_paths import KagglePathError, validate_dataset_file_path
+
 KAGGLE_API_BASE = "https://www.kaggle.com/api/v1"
+
+_ALLOWED_REDIRECT_HOSTS = frozenset(
+    {
+        "www.kaggle.com",
+        "kaggle.com",
+        "storage.googleapis.com",
+    }
+)
 
 IMAGE_EXTS: tuple[str, ...] = (
     ".jpg",
@@ -90,6 +100,60 @@ def _is_image(name: str) -> bool:
 def _is_archive(name: str) -> bool:
     n = name.lower()
     return n.endswith(ARCHIVE_EXTS)
+
+
+def _redirect_target(resp: httpx.Response) -> str:
+    location = resp.headers.get("location")
+    if not location:
+        raise KaggleError("redirect without location")
+    resolved = resp.url.join(location)
+    host = (resolved.host or "").lower()
+    if host not in _ALLOWED_REDIRECT_HOSTS:
+        raise KaggleError("redirect to disallowed host")
+    return str(resolved)
+
+
+def _read_limited_body(
+    resp: httpx.Response,
+    *,
+    max_bytes: int,
+    file_path: str,
+) -> bytes:
+    _check(resp, file_path=file_path)
+    chunks: list[bytes] = []
+    total = 0
+    for chunk in resp.iter_bytes(chunk_size=64 * 1024):
+        if not chunk:
+            continue
+        total += len(chunk)
+        if total > max_bytes:
+            raise KaggleError(
+                f"File is larger than the {max_bytes // (1024 * 1024)} MB server limit; "
+                "pick a smaller image file."
+            )
+        chunks.append(chunk)
+    return b"".join(chunks)
+
+
+def _stream_get_bytes(
+    client: httpx.Client,
+    url: str,
+    creds: KaggleCreds,
+    *,
+    max_bytes: int,
+    file_path: str,
+) -> bytes | None:
+    """GET with manual redirects. Returns ``None`` on 404."""
+    current = url
+    for _ in range(10):
+        with client.stream("GET", current, auth=creds.as_auth(), follow_redirects=False) as resp:
+            if resp.status_code in (301, 302, 303, 307, 308):
+                current = _redirect_target(resp)
+                continue
+            if resp.status_code == 404:
+                return None
+            return _read_limited_body(resp, max_bytes=max_bytes, file_path=file_path)
+    raise KaggleError("too many redirects")
 
 
 def list_dataset_files(
@@ -168,8 +232,10 @@ def download_dataset_file(
 
     Enforces ``max_bytes`` to keep us inside FastAPI/proxy limits.
     """
-    if not file_path:
-        raise KaggleError("file_path is required")
+    try:
+        file_path = validate_dataset_file_path(file_path)
+    except KagglePathError as e:
+        raise KaggleError(str(e)) from e
 
     encoded = quote(file_path, safe="")
     encoded_loose = quote(file_path, safe="/")
@@ -183,34 +249,27 @@ def download_dataset_file(
         )
 
     last_404: KaggleNotFound | None = None
-    with httpx.Client(timeout=timeout, follow_redirects=True) as client:
+    with httpx.Client(timeout=timeout) as client:
         for url in candidates:
             try:
-                with client.stream("GET", url, auth=creds.as_auth()) as resp:
-                    if resp.status_code == 404:
-                        last_404 = KaggleNotFound(
-                            f"Kaggle has no individual download for '{file_path}'. "
-                            "This dataset is likely published as a single archive — "
-                            "open it on kaggle.com to verify, or try a dataset that "
-                            "lists loose image files."
-                        )
-                        continue
-                    _check(resp, file_path=file_path)
-                    chunks: list[bytes] = []
-                    total = 0
-                    for chunk in resp.iter_bytes(chunk_size=64 * 1024):
-                        if not chunk:
-                            continue
-                        total += len(chunk)
-                        if total > max_bytes:
-                            raise KaggleError(
-                                f"File is larger than the {max_bytes // (1024 * 1024)} MB server limit; "
-                                "pick a smaller image file."
-                            )
-                        chunks.append(chunk)
-                    return b"".join(chunks)
+                data = _stream_get_bytes(
+                    client,
+                    url,
+                    creds,
+                    max_bytes=max_bytes,
+                    file_path=file_path,
+                )
             except (KaggleAuthError, KaggleError):
                 raise
+            if data is None:
+                last_404 = KaggleNotFound(
+                    f"Kaggle has no individual download for '{file_path}'. "
+                    "This dataset is likely published as a single archive — "
+                    "open it on kaggle.com to verify, or try a dataset that "
+                    "lists loose image files."
+                )
+                continue
+            return data
     if last_404 is not None:
         raise last_404
     raise KaggleError("Kaggle download failed for an unknown reason.")

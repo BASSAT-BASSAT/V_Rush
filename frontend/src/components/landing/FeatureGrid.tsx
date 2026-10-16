@@ -22,7 +22,7 @@ interface Feature {
   icon: ReactElement
 }
 
-/** Four capability cards. Icons are inline SVG, no external assets. */
+/** Capability cards in the same horizontal marquee band as the showcase gallery. */
 export function FeatureGrid() {
   const features: Feature[] = [
     {
@@ -96,14 +96,28 @@ export function FeatureGrid() {
     })
   }
 
+  const renderCard = (f: Feature, key: string) => (
+    <article
+      key={key}
+      className="landing-feature landing-feature--marquee"
+      style={{ ['--accent' as string]: f.accent }}
+      onMouseMove={handleMove}
+    >
+      <span className="landing-feature__spotlight" aria-hidden />
+      <div className="landing-feature__icon">{f.icon}</div>
+      <h3 className="landing-feature__title">{f.title}</h3>
+      <p className="landing-feature__body">{f.body}</p>
+    </article>
+  )
+
   return (
     <motion.section
-      className="landing-features"
+      className="landing-features landing-marquee-band"
       aria-labelledby="feat-h"
       variants={reduced ? undefined : PARENT_VARIANTS}
       initial="hidden"
       whileInView="show"
-      viewport={{ once: true, amount: 0.18 }}
+      viewport={{ once: true, amount: 0.12 }}
     >
       <motion.h2
         id="feat-h"
@@ -120,22 +134,22 @@ export function FeatureGrid() {
         experiments tactile, reproducible, and ready to ship.
       </motion.p>
 
-      <div className="landing-features__grid">
-        {features.map((f) => (
-          <motion.article
-            key={f.title}
-            className="landing-feature"
-            style={{ ['--accent' as string]: f.accent }}
-            onMouseMove={handleMove}
-            variants={reduced ? undefined : CHILD_VARIANTS}
-            whileHover={reduced ? undefined : { y: -4 }}
-          >
-            <span className="landing-feature__spotlight" aria-hidden />
-            <div className="landing-feature__icon">{f.icon}</div>
-            <h3 className="landing-feature__title">{f.title}</h3>
-            <p className="landing-feature__body">{f.body}</p>
-          </motion.article>
-        ))}
+      <div
+        className="landing-showcase__marquee landing-showcase__marquee--features"
+        role="region"
+        aria-label="Workbench capabilities carousel"
+      >
+        <div className="landing-showcase__marquee-fade landing-showcase__marquee-fade--left" aria-hidden />
+        <div className="landing-showcase__marquee-fade landing-showcase__marquee-fade--right" aria-hidden />
+
+        <div className="landing-showcase__track landing-showcase__track--features">
+          <div className="landing-showcase__set">
+            {features.map((f) => renderCard(f, f.title))}
+          </div>
+          <div className="landing-showcase__set" aria-hidden="true">
+            {features.map((f) => renderCard(f, `${f.title}-dup`))}
+          </div>
+        </div>
       </div>
     </motion.section>
   )

@@ -2880,6 +2880,66 @@
   gap: 3.5rem;
 }
 
+/* Same visual band as “Every op. One rush.” — static grid, global waves show through. */
+.landing-hero-band {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 3.5rem;
+  margin: 0 -1.1rem;
+  padding: 0 1.1rem 0.5rem;
+}
+
+.landing-hero-band::before,
+.landing-marquee-band::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(148, 163, 184, 0.09) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 163, 184, 0.09) 1px, transparent 1px);
+  background-size: 60px 60px;
+  mask-image: linear-gradient(180deg, transparent 0%, black 8%, black 92%, transparent 100%);
+}
+
+.landing-hero-band > *,
+.landing-marquee-band > * {
+  position: relative;
+  z-index: 1;
+}
+
+.landing-marquee-band {
+  position: relative;
+  margin: 0 -1.1rem;
+  padding: 0.5rem 1.1rem 2rem;
+}
+
+.app--landing .wave-backdrop__vignette {
+  background:
+    radial-gradient(92% 72% at 50% 38%, transparent 0%, transparent 52%, rgba(3, 6, 23, 0.48) 100%),
+    linear-gradient(
+      180deg,
+      rgba(3, 6, 23, 0.12) 0%,
+      transparent 22%,
+      transparent 84%,
+      rgba(3, 6, 23, 0.68) 100%
+    );
+}
+
+.app--landing .app__grid-bg {
+  opacity: 0.62;
+  mask-image: radial-gradient(ellipse 110% 90% at 50% 35%, black 30%, transparent 100%);
+}
+
+/* Landing: only the card marquees move — waves/grid stay fixed like the showcase mock. */
+.app--landing .wave-backdrop__viewport,
+.app--landing .wave-backdrop__layer,
+.app--landing .wave-backdrop__scan {
+  animation: none !important;
+}
+
 /* =====================================================================
    App-wide wave signal backdrop — sits behind every route.
    ===================================================================== */
@@ -3134,30 +3194,6 @@
 /* =====================================================================
    Landing — FeatureGrid
    ===================================================================== */
-.landing-features__grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 1rem;
-}
-
-@media (min-width: 540px) {
-  .landing-features__grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@media (min-width: 760px) {
-  .landing-features__grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-}
-
-@media (min-width: 1080px) {
-  .landing-features__grid {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-  }
-}
-
 .landing-feature {
   --accent: #a78bfa;
   position: relative;
@@ -3166,6 +3202,22 @@
   border: 1px solid var(--kl-border);
   background: var(--kl-surface);
   transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.landing-feature--marquee {
+  flex: 0 0 clamp(268px, 28vw, 320px);
+  min-height: 13.5rem;
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.05),
+    0 8px 24px -12px rgba(76, 29, 149, 0.18);
+}
+
+.landing-showcase__track--features {
+  animation-duration: 48s;
+}
+
+.landing-showcase__marquee--features {
+  margin-top: 0.25rem;
 }
 
 .landing-feature:hover {
@@ -3203,7 +3255,13 @@
 /* =====================================================================
    Landing — ShowcaseGallery (rolling slider)
    ===================================================================== */
+.landing-showcase {
+  position: relative;
+}
+
 .landing-showcase__title {
+  position: relative;
+  z-index: 1;
   text-align: center;
 }
 
@@ -6071,6 +6129,161 @@
   grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
   gap: 0.75rem;
   margin-bottom: 0.75rem;
+}
+
+.annotate__row--sampling {
+  margin-bottom: 0.5rem;
+}
+
+.annotate-upload {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.annotate-upload__step {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.annotate-upload__step--sampling {
+  padding: 0.85rem 1rem;
+  border-radius: 12px;
+  border: 1px solid rgba(139, 92, 246, 0.35);
+  background: linear-gradient(
+    135deg,
+    rgba(139, 92, 246, 0.08) 0%,
+    rgba(56, 189, 248, 0.06) 100%
+  );
+}
+
+.annotate-upload__step-head {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+}
+
+.annotate-upload__step-num {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  flex-shrink: 0;
+  background: rgba(139, 92, 246, 0.25);
+  color: #e9d5ff;
+}
+
+.annotate-upload__step-desc {
+  margin: 0.25rem 0 0;
+}
+
+.annotate-upload__ready {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #6ee7b7;
+}
+
+.annotate-upload__dropzone {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  min-height: 9.5rem;
+  padding: 1.25rem 1.5rem;
+  border-radius: 14px;
+  border: 2px dashed rgba(148, 163, 184, 0.45);
+  background: rgba(15, 23, 42, 0.35);
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.annotate-upload__dropzone:hover:not(.annotate-upload__dropzone--locked):not(
+    .annotate-upload__dropzone--busy
+  ) {
+  border-color: rgba(139, 92, 246, 0.65);
+  background: rgba(139, 92, 246, 0.08);
+  box-shadow: 0 0 0 1px rgba(139, 92, 246, 0.15);
+}
+
+.annotate-upload__dropzone--over {
+  border-color: #a78bfa;
+  background: rgba(139, 92, 246, 0.14);
+}
+
+.annotate-upload__dropzone--locked {
+  cursor: not-allowed;
+  opacity: 0.72;
+  border-style: dotted;
+}
+
+.annotate-upload__dropzone--busy {
+  cursor: wait;
+  pointer-events: none;
+}
+
+.annotate-upload__input {
+  position: absolute;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.annotate-upload__icon {
+  color: rgba(167, 139, 250, 0.95);
+  margin-bottom: 0.15rem;
+}
+
+.annotate-upload__title {
+  margin: 0;
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.annotate-upload__sub {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--kl-text-muted);
+  text-align: center;
+  max-width: 28rem;
+}
+
+.annotate-upload__progress {
+  width: min(16rem, 80%);
+  height: 4px;
+  margin-top: 0.5rem;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.25);
+  overflow: hidden;
+}
+
+.annotate-upload__progress-bar {
+  display: block;
+  width: 40%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #8b5cf6, #38bdf8);
+  animation: annotate-upload-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes annotate-upload-pulse {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(350%);
+  }
 }
 
 .annotate__field {

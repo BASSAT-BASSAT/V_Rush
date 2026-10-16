@@ -30,7 +30,8 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
-    allow_credentials=True,
+    # Bearer JWT only from the SPA — no cookies; avoids credentialed CORS footguns.
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )

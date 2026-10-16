@@ -105,7 +105,7 @@ export function ShowcaseGallery() {
   return (
     <MotionReveal
       as="section"
-      className="landing-showcase"
+      className="landing-showcase landing-marquee-band"
       ariaLabelledBy="show-h"
       amount={0.15}
     >

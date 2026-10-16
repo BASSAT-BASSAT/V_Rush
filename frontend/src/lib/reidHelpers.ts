@@ -1,4 +1,4 @@
-import type { AnnotatedFrame, AnnotationBox, ReIdIdentity } from '../types/annotate'
+import type { AnnotatedFrame, AnnotationBox, ReIdIdentity, VideoAnnotationProject } from '../types/annotate'
 import { REID_COLOR_PALETTE } from '../types/annotate'
 
 export function newBoxId(): string {
@@ -173,4 +173,54 @@ export function assignReidFromPreviousFrame(
     iouThreshold,
     preserveMatchedBoxes: false,
   })
+}
+
+function scaleBboxToFrame(
+  bbox: [number, number, number, number],
+  fromW: number,
+  fromH: number,
+  toW: number,
+  toH: number,
+): [number, number, number, number] {
+  if (fromW === toW && fromH === toH) return bbox
+  const sx = toW / fromW
+  const sy = toH / fromH
+  return clampBbox([bbox[0] * sx, bbox[1] * sy, bbox[2] * sx, bbox[3] * sy], toW, toH)
+}
+
+/**
+ * Copy boxes on the source frame to the immediate next frame (same positions;
+ * scales if dimensions differ). New box ids on the target frame; reidId preserved.
+ */
+export function forwardBoxesToNextFrame(
+  project: VideoAnnotationProject,
+  sourceArrayIndex: number,
+): VideoAnnotationProject {
+  const source = project.frames[sourceArrayIndex]
+  const nextIndex = sourceArrayIndex + 1
+  const target = project.frames[nextIndex]
+  if (!source) {
+    throw new Error('Source frame is out of range')
+  }
+  if (!target) {
+    throw new Error('Already on the last frame — nothing to forward to')
+  }
+  if (source.boxes.length === 0) {
+    throw new Error('Draw or label at least one box on this frame before forwarding')
+  }
+
+  const boxes = source.boxes.map((b) => ({
+    ...b,
+    id: newBoxId(),
+    caption: '',
+    bbox: scaleBboxToFrame(b.bbox, source.width, source.height, target.width, target.height),
+  }))
+
+  const frames = project.frames.map((f, i) => (i === nextIndex ? { ...f, boxes } : f))
+
+  return {
+    ...project,
+    frames,
+    updatedAt: new Date().toISOString(),
+  }
 }

@@ -12,7 +12,9 @@ export function NewsletterForm() {
     setMessage(null)
     try {
       const sb = getSupabase()
-      const { error } = await sb.from('email_subscribers').insert({ email: email.trim().toLowerCase() })
+      const { error } = await sb.rpc('subscribe_newsletter', {
+        p_email: email.trim().toLowerCase(),
+      })
       if (error) {
         if (error.code === '23505') {
           setMessage("You're already on the list. Thanks!")

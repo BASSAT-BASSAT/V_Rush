@@ -31,6 +31,12 @@ npx supabase db push
 
 (`db push` applies SQL under `supabase/migrations/` to the linked remote project. Run from the repo root.)
 
+### Security — newsletter table (run after any pentest finding on `email_subscribers`)
+
+1. Apply migration [`20261016120000_email_subscribers_security.sql`](../supabase/migrations/20261016120000_email_subscribers_security.sql) (`npx supabase db push` or paste in SQL Editor).
+2. **Verify:** with the **anon** key, `GET /rest/v1/email_subscribers?select=*` must return **401** or an empty policy denial; `POST` direct insert should fail. Public signup must use RPC `subscribe_newsletter` only (the site footer form calls this after deploy).
+3. In Supabase **Table Editor**, do not re-add “allow all” RLS policies on `email_subscribers`.
+
 ## 1b. Email confirmation redirect + Google sign-in
 
 The app finalizes every Supabase auth flow on a dedicated route: **`/auth/callback`**. You must add that exact path to Supabase, and you must wire Google Cloud OAuth credentials into Supabase if you want one-click Google sign-in.

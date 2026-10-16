@@ -37,7 +37,7 @@ export function AppLayout() {
     firstSeg === 'studio' || firstSeg === 'lab' ? 'pipeline-workspace' : firstSeg
 
   return (
-    <div className="app">
+    <div className={`app${isLanding ? ' app--landing' : ''}`}>
       <div className="app__aurora" aria-hidden />
       <div className="app__grid-bg" aria-hidden />
       <WaveBackdrop />

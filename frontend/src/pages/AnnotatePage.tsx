@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { AnnotateCanvas } from '../components/AnnotateCanvas'
+import { AnnotateVideoUpload } from '../components/AnnotateVideoUpload'
 import {
   deleteLocalAnnotationProject,
   fetchAnnotateCapabilities,
@@ -22,6 +23,7 @@ import {
 } from '../lib/annotationStorage'
 import {
   createIdentity,
+  forwardBoxesToNextFrame,
   identityHotkeyBadge,
   identityHotkeyIndex,
   pruneUnusedIdentities,
@@ -71,6 +73,8 @@ export function AnnotatePage() {
   const [saving, setSaving] = useState(false)
   const [saveMessage, setSaveMessage] = useState<string | null>(null)
   const [infoMessage, setInfoMessage] = useState<string | null>(null)
+  const [samplingReady, setSamplingReady] = useState(false)
+  const [samplingWarning, setSamplingWarning] = useState(false)
 
   const currentFrame = project?.frames[frameIndex] ?? null
   const selectedBox = useMemo(
@@ -149,6 +153,38 @@ export function AnnotatePage() {
     setSelectedBoxId(null)
     setInfoMessage('Box removed from this frame.')
   }, [selectedBoxId, currentFrame, updateFrameBoxes])
+
+  const canForwardToNext =
+    project !== null && frameIndex < project.frames.length - 1 && (currentFrame?.boxes.length ?? 0) > 0
+
+  const forwardBoxesToNext = useCallback(() => {
+    if (!project || currentFrame === null) return
+    const nextFrame = project.frames[frameIndex + 1]
+    if (!nextFrame) return
+    if (currentFrame.boxes.length === 0) {
+      setError('Draw at least one box on this frame before forwarding.')
+      setInfoMessage(null)
+      return
+    }
+    if (
+      nextFrame.boxes.length > 0 &&
+      !window.confirm('Replace boxes on the next frame with copies from this frame?')
+    ) {
+      return
+    }
+    setError(null)
+    try {
+      const next = forwardBoxesToNextFrame(project, frameIndex)
+      setProject(touchUpdated(next))
+      setFrameIndex(frameIndex + 1)
+      setSelectedBoxId(null)
+      setInfoMessage(
+        `Forwarded ${currentFrame.boxes.length} box(es) to frame ${nextFrame.frameIndex}. Adjust positions, then forward again.`,
+      )
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not forward boxes')
+    }
+  }, [project, currentFrame, frameIndex])
 
   const applyReidToSelection = useCallback(
     (reidId: string) => {
@@ -480,6 +516,12 @@ export function AnnotatePage() {
       </header>
 
       {error && <div className="banner banner--error">{error}</div>}
+      {samplingWarning && (
+        <div className="banner banner--warn">
+          Set <strong>sample FPS</strong> and <strong>max frames</strong> first, then click
+          &quot;I&apos;ve set sampling — enable upload&quot; before choosing a video.
+        </div>
+      )}
       {saveMessage && <div className="banner banner--ok">{saveMessage}</div>}
       {infoMessage && <div className="banner banner--ok">{infoMessage}</div>}
 
@@ -488,19 +530,7 @@ export function AnnotatePage() {
           <span className="dock-panel__dot dock-panel__dot--violet" />
           Video &amp; detection setup
         </h2>
-        <div className="annotate__row">
-          <label className="annotate__field">
-            <span className="annotate__label">Video file</span>
-            <input
-              type="file"
-              accept="video/*"
-              disabled={extracting}
-              onChange={(e) => {
-                const f = e.target.files?.[0]
-                if (f) void onVideoSelected(f)
-              }}
-            />
-          </label>
+        <div className="annotate__row annotate__row--sampling">
           <label className="annotate__field">
             <span className="annotate__label">Sample FPS</span>
             <input
@@ -509,7 +539,10 @@ export function AnnotatePage() {
               max={30}
               step={0.25}
               value={sampleFps}
-              onChange={(e) => setSampleFps(Number(e.target.value))}
+              onChange={(e) => {
+                setSampleFps(Number(e.target.value))
+                setSamplingReady(false)
+              }}
             />
           </label>
           <label className="annotate__field">
@@ -519,7 +552,10 @@ export function AnnotatePage() {
               min={1}
               max={500}
               value={maxFrames}
-              onChange={(e) => setMaxFrames(Number(e.target.value))}
+              onChange={(e) => {
+                setMaxFrames(Number(e.target.value))
+                setSamplingReady(false)
+              }}
             />
           </label>
           <label className="annotate__field">
@@ -534,6 +570,25 @@ export function AnnotatePage() {
             />
           </label>
         </div>
+
+        <AnnotateVideoUpload
+          disabled={false}
+          extracting={extracting}
+          progress={extractProgress}
+          samplingReady={samplingReady}
+          sampleFps={sampleFps}
+          maxFrames={maxFrames}
+          onConfirmSampling={() => {
+            setSamplingReady(true)
+            setSamplingWarning(false)
+            setInfoMessage(`Upload enabled at ${sampleFps} FPS, max ${maxFrames} frames.`)
+          }}
+          onNeedSamplingFirst={() => setSamplingWarning(true)}
+          onFile={(f) => {
+            setSamplingWarning(false)
+            void onVideoSelected(f)
+          }}
+        />
 
         <div className="annotate__chips">
           {QUICK_CLASSES.map((c) => (
@@ -606,7 +661,6 @@ export function AnnotatePage() {
             {saving ? 'Saving…' : 'Save project'}
           </button>
         </div>
-        {extracting && <p className="panel-hint">Extracting frames… {extractProgress}</p>}
         {detecting && extractProgress && <p className="panel-hint">{extractProgress}</p>}
       </section>
 
@@ -646,6 +700,15 @@ export function AnnotatePage() {
             <div className="annotate__canvas-bar">
               <button
                 type="button"
+                className="btn btn--sm"
+                disabled={!canForwardToNext}
+                onClick={forwardBoxesToNext}
+                title="Copy this frame's boxes to the next frame only"
+              >
+                Forward to next frame
+              </button>
+              <button
+                type="button"
                 className="btn btn--ghost btn--sm"
                 disabled={!selectedBoxId}
                 onClick={deleteSelectedBox}
@@ -653,8 +716,8 @@ export function AnnotatePage() {
                 Delete selected box
               </button>
               <span className="panel-hint annotate__hints">
-                Click a box · <kbd>1</kbd>–<kbd>9</kbd>/<kbd>0</kbd> Re-ID · <kbd>[</kbd>
-                <kbd>]</kbd> cycle · <kbd>Del</kbd> delete
+                Nudge boxes → forward to next → repeat · <kbd>1</kbd>–<kbd>0</kbd> Re-ID ·{' '}
+                <kbd>Del</kbd> delete
               </span>
             </div>
           </section>
