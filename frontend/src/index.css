@@ -66,6 +66,24 @@
   --kl-meta-badge-bg: rgba(5, 8, 16, 0.5);
   --kl-pipeline-card-end: rgba(12, 16, 28, 0.9);
   --kl-ref-card-end: rgba(12, 16, 28, 0.92);
+
+  --kl-grid-line: rgba(120, 140, 200, 0.06);
+  --kl-landing-grid-line: rgba(148, 163, 184, 0.09);
+  --kl-inset-bg: rgba(15, 23, 42, 0.35);
+  --kl-inset-bg-subtle: rgba(15, 23, 42, 0.25);
+  --kl-thumb-bg: #0b0d13;
+  --kl-hero-eyebrow-fg: #c4b5fd;
+  --kl-hero-grad: linear-gradient(135deg, #c4b5fd 0%, #ec4899 55%, #fb923c 100%);
+  --kl-stat-gradient: linear-gradient(135deg, #c4b5fd, #f472b6);
+  --kl-modal-scrim: rgba(8, 6, 22, 0.78);
+  --kl-modal-pair-bg: rgba(15, 23, 42, 0.6);
+  --kl-float-btn-bg: rgba(15, 23, 42, 0.7);
+  --kl-float-btn-fg: #e2e8f0;
+  --kl-upload-step-fg: #e9d5ff;
+  --kl-success-text: #6ee7b7;
+  --kl-slot-idle-bg: rgba(255, 255, 255, 0.03);
+  --kl-slot-hover-bg: rgba(255, 255, 255, 0.08);
+  --kl-hero-visual-border: rgba(255, 255, 255, 0.08);
 }
 
 /* Light: soft lavender surfaces, deep purple text */
@@ -126,6 +144,24 @@
   --kl-meta-badge-bg: rgba(91, 33, 182, 0.1);
   --kl-pipeline-card-end: rgba(237, 233, 254, 0.98);
   --kl-ref-card-end: rgba(245, 240, 255, 0.98);
+
+  --kl-grid-line: rgba(91, 33, 182, 0.12);
+  --kl-landing-grid-line: rgba(91, 33, 182, 0.14);
+  --kl-inset-bg: #ffffff;
+  --kl-inset-bg-subtle: #faf8ff;
+  --kl-thumb-bg: #e9e5f5;
+  --kl-hero-eyebrow-fg: #5b21b6;
+  --kl-hero-grad: linear-gradient(135deg, #5b21b6 0%, #be185d 52%, #c2410c 100%);
+  --kl-stat-gradient: linear-gradient(135deg, #5b21b6, #be185d);
+  --kl-modal-scrim: rgba(22, 16, 40, 0.42);
+  --kl-modal-pair-bg: #ede9fe;
+  --kl-float-btn-bg: rgba(255, 255, 255, 0.94);
+  --kl-float-btn-fg: #161026;
+  --kl-upload-step-fg: #4c1d95;
+  --kl-success-text: #047857;
+  --kl-slot-idle-bg: rgba(91, 33, 182, 0.07);
+  --kl-slot-hover-bg: rgba(91, 33, 182, 0.12);
+  --kl-hero-visual-border: rgba(91, 33, 182, 0.16);
 }
 
 body {
